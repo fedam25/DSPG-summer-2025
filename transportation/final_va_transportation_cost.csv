@@ -1,0 +1,134 @@
+County,Car_Share,Transit_Share,avg_vehicles_per_household,scaled_car_cost,Transit_Cost,Transportation_Cost,Assigned_Transit_Cost.x,Assigned_Transit_Cost.y
+"Accomack County, Virginia",0.7419,0.1478,2.01,18090,900,13553.99,NA,NA
+"Albemarle County, Virginia",0.6776,0.0774,2.04,18360,900,12510.4,NA,NA
+"Alleghany County, Virginia",0.8821,0.0788,1.75,15750,900,13964,NA,NA
+"Amelia County, Virginia",0.83,0.0497,1.55,13950,900,11623.23,NA,NA
+"Amherst County, Virginia",0.8189,0.0914,1.78,16020,900,13201.04,NA,NA
+"Appomattox County, Virginia",0.8767,0.05,1.79,16110,900,14168.64,NA,NA
+"Arlington County, Virginia",0.4029,0.0527,2.39,21510,900,8713.81,972,972
+"Augusta County, Virginia",0.8742,0.0742,1.85,16650,900,14622.21,NA,NA
+"Bath County, Virginia",0.9155,0.0365,1.9,17100,900,15687.9,NA,NA
+"Bedford County, Virginia",0.8309,0.0694,1.86,16740,900,13971.73,NA,NA
+"Bland County, Virginia",0.8339,0.1033,1.83,16470,900,13827.3,NA,NA
+"Botetourt County, Virginia",0.8363,0.0662,1.82,16380,900,13758.17,NA,NA
+"Brunswick County, Virginia",0.8294,0.0787,1.71,15390,900,12835.3,NA,NA
+"Buchanan County, Virginia",0.8548,0.0821,1.84,16560,900,14229.38,NA,NA
+"Buckingham County, Virginia",0.8096,0.0897,1.65,14850,900,12103.29,NA,NA
+"Campbell County, Virginia",0.8523,0.0765,1.88,16920,900,14489.77,NA,NA
+"Caroline County, Virginia",0.7561,0.1125,1.79,16110,900,12282.02,NA,NA
+"Carroll County, Virginia",0.8811,0.1072,1.78,16020,900,14211.7,NA,NA
+"Charles City County, Virginia",0.8625,0.0554,1.59,14310,900,12392.24,NA,NA
+"Charlotte County, Virginia",0.8731,0.0776,2,18000,900,15785.64,NA,NA
+"Chesterfield County, Virginia",0.7603,0.0784,1.91,17190,900,13140.12,NA,NA
+"Clarke County, Virginia",0.7393,0.0713,1.92,17280,900,12839.27,NA,NA
+"Craig County, Virginia",0.8529,0.072,1.81,16290,900,13958.54,NA,NA
+"Culpeper County, Virginia",0.7736,0.1165,1.89,17010,900,13263.79,NA,NA
+"Cumberland County, Virginia",0.838,0.0806,1.68,15120,900,12743.1,NA,NA
+"Dickenson County, Virginia",0.7957,0.1365,1.85,16650,900,13371.25,NA,NA
+"Dinwiddie County, Virginia",0.8199,0.0923,1.8,16200,900,13365.45,NA,NA
+"Essex County, Virginia",0.7708,0.0833,1.9,17100,900,13255.65,NA,NA
+"Fairfax County, Virginia",0.5933,0.0803,2,18000,900,10751.67,NA,NA
+"Fauquier County, Virginia",0.7828,0.071,1.83,16470,900,12956.62,NA,NA
+"Floyd County, Virginia",0.8252,0.0944,1.75,15750,900,13081.86,NA,NA
+"Fluvanna County, Virginia",0.7622,0.1023,1.79,16110,900,12371.11,NA,NA
+"Franklin County, Virginia",0.8219,0.0765,1.73,15570,900,12865.83,NA,NA
+"Frederick County, Virginia",0.8123,0.0835,1.81,16290,900,13307.52,NA,NA
+"Giles County, Virginia",0.8697,0.0985,1.91,17190,900,15038.79,NA,NA
+"Gloucester County, Virginia",0.8746,0.041,1.79,16110,900,14126.71,NA,NA
+"Goochland County, Virginia",0.8111,0.0398,1.81,16290,900,13248.64,NA,NA
+"Grayson County, Virginia",0.8308,0.0987,1.77,15930,900,13323.47,NA,NA
+"Greene County, Virginia",0.7684,0.1029,1.87,16830,900,13024.78,NA,NA
+"Greensville County, Virginia",0.7965,0.1427,1.91,17190,900,13820.26,NA,NA
+"Halifax County, Virginia",0.8215,0.1074,1.84,16560,900,13700.7,NA,NA
+"Hanover County, Virginia",0.7953,0.0538,1.86,16740,900,13361.74,NA,NA
+"Henrico County, Virginia",0.7173,0.0749,2.05,18450,900,13301.6,NA,NA
+"Henry County, Virginia",0.8488,0.0881,1.96,17640,900,15052.12,NA,NA
+"Highland County, Virginia",0.7217,0.0165,1.65,14850,900,10732.1,NA,NA
+"Isle of Wight County, Virginia",0.8325,0.0702,1.9,17100,900,14298.93,NA,NA
+"James City County, Virginia",0.7822,0.0657,1.99,17910,900,14068.33,NA,NA
+"King and Queen County, Virginia",0.8086,0.0957,1.72,15480,900,12603.26,NA,NA
+"King George County, Virginia",0.7684,0.0846,1.89,17010,900,13146.62,NA,NA
+"King William County, Virginia",0.8141,0.0715,1.6,14400,900,11787.39,NA,NA
+"Lancaster County, Virginia",0.8173,0.0389,1.95,17550,900,14378.62,NA,NA
+"Lee County, Virginia",0.87,0.066,1.98,17820,900,15562.8,NA,NA
+"Loudoun County, Virginia",0.629,0.0761,1.94,17460,900,11050.83,NA,NA
+"Louisa County, Virginia",0.7935,0.1116,1.81,16290,900,13026.56,NA,NA
+"Lunenburg County, Virginia",0.8357,0.0904,1.77,15930,900,13394.06,NA,NA
+"Madison County, Virginia",0.7677,0.0791,1.79,16110,900,12438.84,NA,NA
+"Mathews County, Virginia",0.7711,0.06,1.9,17100,900,13239.81,NA,NA
+"Mecklenburg County, Virginia",0.8423,0.0533,1.93,17370,900,14678.72,NA,NA
+"Middlesex County, Virginia",0.7359,0.0685,1.82,16380,900,12115.69,NA,NA
+"Montgomery County, Virginia",0.7424,0.0639,2,18000,900,13420.71,NA,NA
+"Nelson County, Virginia",0.6599,0.0963,1.85,16650,900,11074.01,NA,NA
+"New Kent County, Virginia",0.7768,0.0528,1.69,15210,900,11862.65,NA,NA
+"Northampton County, Virginia",0.7154,0.1581,1.96,17640,900,12761.95,NA,NA
+"Northumberland County, Virginia",0.7156,0.14,1.68,15120,900,10945.87,NA,NA
+"Nottoway County, Virginia",0.8303,0.0552,2,18000,900,14995.08,NA,NA
+"Orange County, Virginia",0.7756,0.1022,1.81,16290,900,12726.5,NA,NA
+"Page County, Virginia",0.7878,0.1583,1.76,15840,900,12621.22,NA,NA
+"Patrick County, Virginia",0.7747,0.0938,1.81,16290,900,12704.28,NA,NA
+"Pittsylvania County, Virginia",0.8796,0.0668,1.9,17100,900,15101.28,NA,NA
+"Powhatan County, Virginia",0.7737,0.0538,1.71,15390,900,11955.66,NA,NA
+"Prince Edward County, Virginia",0.7333,0.1597,1.98,17820,900,13211.14,NA,NA
+"Prince George County, Virginia",0.7199,0.0727,1.79,16110,900,11663.02,NA,NA
+"Prince William County, Virginia",0.6887,0.0991,1.92,17280,900,11989.93,NA,NA
+"Pulaski County, Virginia",0.862,0.0792,2.04,18360,900,15897.6,NA,NA
+"Rappahannock County, Virginia",0.7007,0.0558,1.82,16380,900,11527.69,NA,NA
+"Richmond County, Virginia",0.7598,0.0722,1.6,14400,900,11006.1,NA,NA
+"Roanoke County, Virginia",0.8131,0.0553,1.9,17100,900,13953.78,NA,NA
+"Rockbridge County, Virginia",0.8018,0.0825,1.84,16560,900,13352.06,NA,NA
+"Rockingham County, Virginia",0.811,0.0985,1.81,16290,900,13299.84,NA,NA
+"Russell County, Virginia",0.8221,0.1419,1.94,17460,900,14481.58,NA,NA
+"Scott County, Virginia",0.897,0.0676,1.84,16560,900,14915.16,NA,NA
+"Shenandoah County, Virginia",0.806,0.1002,1.82,16380,900,13292.46,NA,NA
+"Smyth County, Virginia",0.8571,0.0947,2.01,18090,900,15590.17,NA,NA
+"Southampton County, Virginia",0.7971,0.1236,1.92,17280,900,13885.13,NA,NA
+"Spotsylvania County, Virginia",0.7473,0.1022,1.89,17010,900,12803.55,NA,NA
+"Stafford County, Virginia",0.6867,0.1089,1.83,16470,900,11407.96,NA,NA
+"Surry County, Virginia",0.7827,0.1431,1.85,16650,900,13160.75,NA,NA
+"Sussex County, Virginia",0.8706,0.0581,1.86,16740,900,14626.13,NA,NA
+"Tazewell County, Virginia",0.847,0.0861,1.92,17280,900,14713.65,NA,NA
+"Warren County, Virginia",0.7544,0.1039,1.91,17190,900,13061.65,NA,NA
+"Washington County, Virginia",0.8532,0.0785,1.98,17820,900,15274.67,NA,NA
+"Westmoreland County, Virginia",0.7813,0.0851,1.86,16740,900,13155.55,NA,NA
+"Wise County, Virginia",0.8402,0.0833,1.94,17460,900,14744.86,NA,NA
+"Wythe County, Virginia",0.853,0.0994,2.01,18090,900,15520.23,NA,NA
+"York County, Virginia",0.7764,0.0809,1.9,17100,900,13349.25,NA,NA
+"Alexandria city, Virginia",0.508,0.0655,2.33,20970,900,10711.71,NA,NA
+"Bristol city, Virginia",0.8231,0.0502,2.11,18990,900,15675.85,NA,NA
+"Buena Vista city, Virginia",0.8582,0.0674,1.89,17010,900,14658.64,NA,NA
+"Charlottesville city, Virginia",0.5487,0.0547,2.24,20160,900,11111.02,0,0
+"Chesapeake city, Virginia",0.7975,0.0812,1.97,17730,900,14212.75,NA,NA
+"Colonial Heights city, Virginia",0.8173,0.0626,2.11,18990,900,15576.87,NA,NA
+"Covington city, Virginia",0.8877,0.0416,1.79,16110,900,14338.29,NA,NA
+"Danville city, Virginia",0.7858,0.1073,2.24,20160,900,15938.3,240,240
+"Emporia city, Virginia",0.8355,0.1049,2.15,19350,900,16261.34,NA,NA
+"Fairfax city, Virginia",0.5846,0.0969,1.95,17550,900,10346.94,NA,NA
+"Falls Church city, Virginia",0.5357,0.0392,2.15,19350,900,10401.07,NA,NA
+"Franklin city, Virginia",0.9097,0.0319,2.17,19530,900,17795.15,NA,NA
+"Fredericksburg city, Virginia",0.6789,0.1219,2.38,21420,900,14651.75,NA,NA
+"Galax city, Virginia",0.8473,0.1658,2.14,19260,900,16468.22,NA,NA
+"Hampton city, Virginia",0.7993,0.0866,2.15,19350,900,15544.4,NA,NA
+"Harrisonburg city, Virginia",0.7184,0.1312,2.01,18090,900,13113.94,0,0
+"Hopewell city, Virginia",0.8126,0.084,2.03,18270,900,14921.8,NA,NA
+"Lexington city, Virginia",0.5686,0.0207,2.2,19800,900,11276.91,NA,NA
+"Lynchburg city, Virginia",0.7303,0.0808,2.2,19800,900,14532.66,480,480
+"Manassas city, Virginia",0.7027,0.1311,1.91,17190,900,12197.4,NA,NA
+"Manassas Park city, Virginia",0.7122,0.1344,1.87,16830,900,12107.29,NA,NA
+"Martinsville city, Virginia",0.8373,0.1177,2.16,19440,900,16383.04,NA,NA
+"Newport News city, Virginia",0.7635,0.0866,2.26,20340,900,15607.53,NA,NA
+"Norfolk city, Virginia",0.737,0.0939,2.31,20790,900,15406.74,600,600
+"Norton city, Virginia",0.7058,0.1572,2.39,21510,900,15323.24,NA,NA
+"Petersburg city, Virginia",0.7521,0.0933,2.4,21600,900,16329.33,NA,NA
+"Poquoson city, Virginia",0.8536,0.0396,1.88,16920,900,14478.55,NA,NA
+"Portsmouth city, Virginia",0.7414,0.1186,2.18,19620,900,14653.01,NA,NA
+"Radford city, Virginia",0.8616,0.0653,2.03,18270,900,15800.2,NA,NA
+"Richmond city, Virginia",0.6652,0.078,2.34,21060,900,14079.31,0,0
+"Roanoke city, Virginia",0.7807,0.0729,2.27,20430,900,16015.31,360,360
+"Salem city, Virginia",0.7892,0.0706,2.09,18810,900,14908.39,NA,NA
+"Staunton city, Virginia",0.8027,0.0881,2.16,19440,900,15683.78,120,120
+"Suffolk city, Virginia",0.8411,0.0654,1.99,17910,900,15122.96,NA,NA
+"Virginia Beach city, Virginia",0.7761,0.0748,2.03,18270,900,14246.67,NA,NA
+"Waynesboro city, Virginia",0.7727,0.1103,2.2,19800,900,15398.73,NA,NA
+"Williamsburg city, Virginia",0.6181,0.06,2.05,18450,900,11457.94,NA,NA
+"Winchester city, Virginia",0.7466,0.0878,2.3,20700,900,15533.64,NA,NA
