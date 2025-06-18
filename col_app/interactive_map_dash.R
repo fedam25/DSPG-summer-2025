@@ -4,6 +4,8 @@ library(tigris)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
+library(ggplot2) # Required for creating plots that plotly can convert
+library(plotly)  # For interactive plots
 
 options(tigris_use_cache = TRUE)
 
@@ -11,7 +13,7 @@ options(tigris_use_cache = TRUE)
 va_counties <- counties(state = "VA", cb = TRUE, class = "sf")
 virginia_county_names <- sort(unique(va_counties$NAME))
 
-# --- Sample Data Generation ---
+# --- Sample Data Generation ------------------------------------------------------
 # This function generates sample cost data for a given county.
 # The `base_cost` provides a general level, and `county_seed`
 # ensures that the "random" data is consistent for a given county,
@@ -22,9 +24,11 @@ generate_county_cost_data <- function(county_name, base_cost_multiplier = 1) {
   set.seed(nchar(county_name) * 100 + which(virginia_county_names == county_name))
   
   # Define cost variables and family structures
+  # Reverted cost_variables to include "Utilities" as a single item
   cost_variables <- c("Housing", "Food", "Transportation", "Taxes", "Healthcare",
                       "Childcare", "Technology", "Elder Care", "Utilities",
-                      "Miscellaneous", "Hourly Wage")
+                      "Miscellaneous", "Hourly Wage") # Keep Hourly Wage for now as per previous version's generate_cost_data
+  
   family_structures <- c(
     "1 Adult: 19–50 Years",
     "2 Adults: 19–50 Years",
@@ -142,13 +146,13 @@ ui <- fluidPage(
         margin: 0 auto; /* Center the container */
         padding: 0 15px; /* Add some padding inside the container */
       }
-      .shiny-plot-output, .leaflet-container {
+      .shiny-plot-output, .leaflet-container, .plotly { /* Added .plotly for plotly outputs */
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Add subtle shadow */
         width: 100% !important; /* Ensure they take full width of their container */
       }
       /* Table styling */
-      table.data table {
+      table.data { /* Target the table directly */
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 20px;
@@ -159,9 +163,16 @@ ui <- fluidPage(
         padding: 8px;
         text-align: left;
       }
-      table.data th {
-        background-color: #f2f2f2;
-        color: #333;
+      /* Highlight table header row (family types) */
+      table.data thead th {
+        background-color: #d9edf7; /* Light blue */
+        color: #001f3f; /* Dark blue text */
+        font-weight: bold;
+      }
+      /* Highlight first column (cost variables) */
+      table.data tbody td:first-child {
+        background-color: #f0f8ff; /* Very light blue */
+        font-weight: bold;
       }
     "))
   ),
@@ -175,15 +186,15 @@ ui <- fluidPage(
     width = 12, # Make mainPanel occupy full width
     tabsetPanel(
       id = "main_tabs", # Give an ID to the tabset panel
-      selected = "About", # Set 'About' as the default page
+      selected = "About", # To set 'About' as the default page
       
       # --- About Page ----------------------------------------------------------------
       tabPanel("About",
                div(class = "content-container", # Apply centering and spacing to the content
                    div(class = "about-section",
                        h2("About Our Project"),
-                       p("This interactive dashboard was developed as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program."),
-                       p("Its primary purpose is to provide valuable insights into the cost of living across all counties and independent cities in Virginia. Our goal is to empower citizens, policymakers, and researchers with accessible information to better understand financial landscapes and make informed decisions."),
+                       p("This dashboard was developed as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program."),
+                       p("Its primary purpose is to provide data-driven insights into the cost of living across all counties and cities in Virginia. Our goal is to empower citizens, policymakers, and researchers with accessible information to better understand financial landscapes and make informed decisions."),
                        p("This tool includes both minimum and average cost estimates, breaking down expenses into key categories for various common family types."),
                        
                        div(class = "section-title", "Why is This Important?"),
@@ -203,7 +214,7 @@ ui <- fluidPage(
                        tags$ol(
                          tags$li(div(class = "about-variable-item",
                                      h4("Housing"),
-                                     p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, utilities (like electricity, water, gas, and trash collection), and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling.")
+                                     p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling.")
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Food"),
@@ -231,11 +242,11 @@ ui <- fluidPage(
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Elder Care"),
-                                     p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents.")
+                                     p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+).")
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Utilities"),
-                                     p("Utilities cover basic household services beyond what is included in Housing, such as electricity, water, natural gas, heating oil, and waste removal. These are estimated based on average consumption rates for typical households.")
+                                     p("Utilities cover basic household services such as electricity, water, natural gas, heating oil, and waste removal. These are estimated based on average consumption rates for typical households.")
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Miscellaneous"),
@@ -243,8 +254,21 @@ ui <- fluidPage(
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Hourly Wage"),
-                                     p("The hourly wage represents the estimated hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")
+                                     p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")
                          ))
+                       ),
+                       
+                       div(class = "section-title", "How to Use This Dashboard"),
+                       p("Navigating this dashboard is straightforward! Follow these simple steps to explore the cost of living data across Virginia:"),
+                       tags$ol(
+                         tags$li("To begin, the 'About' page provides a comprehensive introduction to our project, its importance, our methodology, and a detailed explanation of all the variables used in our calculations. This is a great place to start to understand the context of the data."),
+                         tags$li("Once you're familiar with the project, click on either the 'Minimum Cost' or 'Average Cost' tab at the top of the page. These tabs will take you to the core data visualizations."),
+                         tags$li("On either the 'Minimum Cost' or 'Average Cost' page, you will see a dropdown menu labeled 'Select County or City'. Click on this menu and choose any county or independent city in Virginia."),
+                         tags$li("As soon as you select a county or city, the 'Cost Table', 'Interactive County Map', and 'Cost Breakdown Bar Chart' below will automatically update to display information specific to your chosen location."),
+                         tags$li("The 'Cost Table' provides a detailed numerical breakdown of expenses for various family types. The 'Interactive County Map' shows the relative cost level across all counties, with your selected county highlighted."),
+                         tags$li("The 'Cost Breakdown Bar Chart' visualizes how different expense categories contribute to the total cost. You can hover over any bar on the graph to see precise values and details for that specific cost variable."),
+                         tags$li("Switch between the 'Minimum Cost' and 'Average Cost' tabs to compare different standards of living across Virginia. Feel free to explore different counties and family structures to gain deeper insights!"),
+                         tags$li("If you have any questions or would like to contribute, please refer to the 'Acknowledgement' section at the bottom of the 'About' page.")
                        ),
                        
                        div(class = "section-title", "Sources"),
@@ -257,10 +281,9 @@ ui <- fluidPage(
                          tags$li("Further specific sources will be listed here upon integration of final datasets.")
                        ),
                        
-                       div(class = "section-title", "Contributors"),
+                       div(class = "section-title", "Acknowledgement"),
                        tags$ul(
-                         tags$li("Feda Mohammadi"),
-                         tags$li("Julia Vecharello")
+                         tags$li("This dashboard was developed by Feda Mohammadi and Julia Vecharello as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in Summer 2025. We extend our sincere gratitude to the DSPG program for providing this valuable opportunity to contribute to public understanding through data science.")
                        )
                    )
                )
@@ -281,8 +304,8 @@ ui <- fluidPage(
                    div(class = "section-desc", "This map displays the average minimum cost level across all Virginia counties. The selected county is highlighted."),
                    leafletOutput("min_map", height = 450), # Slightly reduced height
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the minimum cost components for the selected county/city."),
-                   plotOutput("min_plot", height = 350), # Slightly reduced height
+                   div(class = "section-desc", "A visualization of the minimum cost components for the selected county/city. Hover over bars for details!"),
+                   plotlyOutput("min_plot", height = 350), # Changed to plotlyOutput
                    div(class = "future-text-section", # This div now has additional margin-top
                        h4("Additional Insights and Data"),
                        p("This section is reserved for future analysis and detailed explanations related to minimum cost data. We plan to include more in-depth breakdowns, comparisons, and policy implications here as more datasets are integrated.")
@@ -305,11 +328,11 @@ ui <- fluidPage(
                    div(class = "section-desc", "This map displays the average cost level across all Virginia counties. The selected county is highlighted."),
                    leafletOutput("avg_map", height = 450), # Slightly reduced height
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the average cost components for the selected county/city."),
-                   plotOutput("avg_plot", height = 350), # Slightly reduced height
+                   div(class = "section-desc", "A visualization of the average cost components for the selected county/city. Hover over bars for details!"),
+                   plotlyOutput("avg_plot", height = 350), # Changed to plotlyOutput
                    div(class = "future-text-section", # This div now has additional margin-top
-                       h4("Additional"),
-                       p("This section is reserved for future analysis and detailed explanations related to average cost data and our methodology. Here, we may include some more in-depth breakdowns, comparisons, and policy implications here as more datasets are integrated.")
+                       h4("Additional Insights and Data"),
+                       p("This section is reserved for future analysis and detailed explanations related to average cost data. We plan to include more in-depth breakdowns, comparisons, and policy implications here as more datasets are integrated.")
                    )
                )
       )
@@ -323,34 +346,45 @@ server <- function(input, output, session) {
   # Reactive expression for Minimum Cost data based on selected county
   min_cost_data_reactive <- reactive({
     req(input$county_min) # Ensure a county is selected
-    generate_county_cost_data(input$county_min, base_cost_multiplier = 1)
+    generate_county_cost_data(input$county_min, base_cost_multiplier = 1) %>%
+      # Filter out 'Hourly Wage' for the graph/table display if needed for some views
+      filter(`Cost Variable` != "Hourly Wage")
   })
   
   # Reactive expression for Average Cost data based on selected county
   avg_cost_data_reactive <- reactive({
     req(input$county_avg) # Ensure a county is selected
-    generate_county_cost_data(input$county_avg, base_cost_multiplier = 1.5) # Higher base for average
+    generate_county_cost_data(input$county_avg, base_cost_multiplier = 1.5) %>% # Higher base for average
+      # Filter out 'Hourly Wage' for the graph/table display if needed for some views
+      filter(`Cost Variable` != "Hourly Wage")
   })
   
   # --- Minimum Cost Tab Outputs ---------------------------------------------------
   
   output$min_table <- renderTable({
+    # Use the reactive data that excludes Hourly Wage for the table
     min_cost_data_reactive()
-  }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%") # Added width for better table display
+  }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE,
+  # Added callback to apply custom styling to table rows
+  sanitize.text.function = function(x) x # Prevent Shiny from escaping HTML
+  )
   
-  output$min_plot <- renderPlot({
-    # Select first 5 cost variables for the plot for simplicity
+  output$min_plot <- renderPlotly({
     plot_data <- min_cost_data_reactive() %>%
-      slice(1:5) %>%
-      select(`Cost Variable`, `1 Adult: 19–50 Years`) # Example: plotting for a specific family type
+     
+      mutate(`Cost Variable` = factor(`Cost Variable`, levels = unique(`Cost Variable`)))
     
-    barplot(setNames(plot_data$`1 Adult: 19–50 Years`, plot_data$`Cost Variable`),
-            main = paste("Minimum Cost Breakdown -", input$county_min),
-            ylab = "Monthly Cost ($)",
-            col = "steelblue",
-            border = "white",
-            cex.names = 0.8, # Adjust label size
-            las = 2) # Rotate labels for better readability
+    p <- ggplot(plot_data, aes(x = `Cost Variable`, y = `1 Adult: 19–50 Years`,
+                               text = paste("Variable:", `Cost Variable`, "<br>Cost: $", `1 Adult: 19–50 Years`))) +
+      geom_bar(stat = "identity", fill = "steelblue") +
+      labs(title = paste("Minimum Cost Breakdown -", input$county_min),
+           y = "Monthly Cost ($)",
+           x = "Cost Variable") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9, margin = margin(t = 10))) # Adjusted size and margin for all labels
+    
+    ggplotly(p, tooltip = "text") %>%
+      layout(hovermode = "x unified") # Unify tooltips when hovering over x-axis categories
   })
   
   output$min_map <- renderLeaflet({
@@ -410,22 +444,29 @@ server <- function(input, output, session) {
   # --- Average Cost Tab Outputs ----------------------------------------------------
   
   output$avg_table <- renderTable({
+    # Use the reactive data that excludes Hourly Wage for the table
     avg_cost_data_reactive()
-  }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%") # Added width for better table display
+  }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE,
+  # Added callback to apply custom styling to table rows
+  sanitize.text.function = function(x) x # Prevent Shiny from escaping HTML
+  )
   
-  output$avg_plot <- renderPlot({
-    # Selected first 5 cost variables for the plot for simplicity
+  output$avg_plot <- renderPlotly({
     plot_data <- avg_cost_data_reactive() %>%
-      slice(1:5) %>%
-      select(`Cost Variable`, `1 Adult: 19–50 Years`)
+      # Ensure 'Cost Variable' is a factor for correct ordering in ggplot
+      mutate(`Cost Variable` = factor(`Cost Variable`, levels = unique(`Cost Variable`)))
     
-    barplot(setNames(plot_data$`1 Adult: 19–50 Years`, plot_data$`Cost Variable`),
-            main = paste("Average Cost Breakdown -", input$county_avg),
-            ylab = "Monthly Cost ($)",
-            col = "darkorange",
-            border = "white",
-            cex.names = 0.8,
-            las = 2)
+    p <- ggplot(plot_data, aes(x = `Cost Variable`, y = `1 Adult: 19–50 Years`,
+                               text = paste("Variable:", `Cost Variable`, "<br>Cost: $", `1 Adult: 19–50 Years`))) +
+      geom_bar(stat = "identity", fill = "darkorange") + # Different color for average cost plot
+      labs(title = paste("Average Cost Breakdown -", input$county_avg),
+           y = "Monthly Cost ($)",
+           x = "Cost Variable") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9, margin = margin(t = 10))) # Adjusted size and margin for all labels
+    
+    ggplotly(p, tooltip = "text") %>%
+      layout(hovermode = "x unified") # Unify tooltips when hovering over x-axis categories
   })
   
   output$avg_map <- renderLeaflet({
