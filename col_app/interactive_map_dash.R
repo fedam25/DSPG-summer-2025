@@ -4,8 +4,8 @@ library(tigris)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
-library(ggplot2) # Required for creating plots that plotly can convert
-library(plotly)  # For interactive plots
+library(ggplot2) 
+library(plotly)  
 
 options(tigris_use_cache = TRUE)
 
@@ -14,20 +14,12 @@ va_counties <- counties(state = "VA", cb = TRUE, class = "sf")
 virginia_county_names <- sort(unique(va_counties$NAME))
 
 # --- Sample Data Generation ------------------------------------------------------
-# This function generates sample cost data for a given county.
-# The `base_cost` provides a general level, and `county_seed`
-# ensures that the "random" data is consistent for a given county,
-# making it appear as if the data changes with county selection.
 generate_county_cost_data <- function(county_name, base_cost_multiplier = 1) {
-  # Use the county name to set a seed for reproducibility across sessions
-  # but difference across counties.
   set.seed(nchar(county_name) * 100 + which(virginia_county_names == county_name))
   
-  # Define cost variables and family structures
-  # Reverted cost_variables to include "Utilities" as a single item
   cost_variables <- c("Housing", "Food", "Transportation", "Taxes", "Healthcare",
                       "Childcare", "Technology", "Elder Care", "Utilities",
-                      "Miscellaneous", "Hourly Wage") # Keep Hourly Wage for now as per previous version's generate_cost_data
+                      "Miscellaneous", "Hourly Wage")
   
   family_structures <- c(
     "1 Adult: 19–50 Years",
@@ -38,8 +30,6 @@ generate_county_cost_data <- function(county_name, base_cost_multiplier = 1) {
     "2 Adults: 65+"
   )
   
-  # Generate random costs for each variable and family type
-  # Costs are based on a multiplier to simulate different "levels" (min/avg)
   data <- matrix(round(runif(length(family_structures) * length(cost_variables),
                              base_cost_multiplier * 50, base_cost_multiplier * 300), 2),
                  nrow = length(cost_variables),
@@ -52,22 +42,28 @@ generate_county_cost_data <- function(county_name, base_cost_multiplier = 1) {
   return(df)
 }
 
-# Generate sample map data for initial display and legend.
-# This data will be used to color all counties on the map.
-# We'll use a simple random cost for each county for map coloring.
-set.seed(456)
+generate_county_total_cost <- function(county_name, base_cost_multiplier = 1) {
+  cost_data <- generate_county_cost_data(county_name, base_cost_multiplier)
+  total_cost <- cost_data %>%
+    filter(`Cost Variable` != "Hourly Wage") %>%
+    summarise(total = sum(`1 Adult: 19–50 Years`)) %>%
+    pull(total)
+  return(total_cost)
+}
+
+# Generate map data with total costs for all counties
 sample_map_costs_min <- data.frame(
   NAME = virginia_county_names,
-  Cost = runif(length(virginia_county_names), 2000, 5000) # Min cost range
+  Cost = sapply(virginia_county_names, function(x) generate_county_total_cost(x, 1))
 )
+
 sample_map_costs_avg <- data.frame(
   NAME = virginia_county_names,
-  Cost = runif(length(virginia_county_names), 3000, 7000) # Avg cost range
+  Cost = sapply(virginia_county_names, function(x) generate_county_total_cost(x, 1.5))
 )
 
 va_map_data_min <- left_join(va_counties, sample_map_costs_min, by = "NAME")
 va_map_data_avg <- left_join(va_counties, sample_map_costs_avg, by = "NAME")
-
 
 # UI Definition
 ui <- fluidPage(
@@ -79,7 +75,7 @@ ui <- fluidPage(
         padding: 30px 20px;
         margin-bottom: 20px;
         text-align: center;
-        border-radius: 10px; /* Added rounded corners */
+        border-radius: 10px;
       }
       .custom-header h1 {
         color: white;
@@ -92,30 +88,29 @@ ui <- fluidPage(
         font-size: 17px;
         margin-bottom: 20px;
         padding: 15px;
-        background-color: #f8f8f8; /* Lighter background for content */
+        background-color: #f8f8f8;
         border-radius: 10px;
-        border: 1px solid #e0e0e0; /* Subtle border */
+        border: 1px solid #e0e0e0;
       }
-      /* Added margin-top to separate it from the plot above */
       .future-text-section {
-        margin-top: 30px; /* Added space here */
+        margin-top: 30px;
       }
       .section-title {
-        font-size: 24px; /* Larger section titles */
+        font-size: 24px;
         font-weight: bold;
-        margin-top: 30px; /* More spacing */
+        margin-top: 30px;
         margin-bottom: 10px;
-        color: #001f3f; /* Dark blue for titles */
+        color: #001f3f;
       }
       .section-desc {
-        font-size: 16px; /* Slightly larger description text */
+        font-size: 16px;
         margin-bottom: 20px;
         color: #555;
       }
       .about-variable-item {
         margin-bottom: 15px;
         padding-left: 20px;
-        border-left: 3px solid #007bff; /* Blue accent for variables */
+        border-left: 3px solid #001f3f;
       }
       .about-variable-item h4 {
         margin-top: 0;
@@ -137,42 +132,156 @@ ui <- fluidPage(
       }
       .nav-tabs > li.active > a, .nav-tabs > li.active > a:focus, .nav-tabs > li.active > a:hover {
         color: white;
-        background-color: #007bff; /* Active tab color */
+        background-color: #007bff;
         border-color: #007bff;
       }
       /* Adjust output sizes and centering */
       .content-container {
-        max-width: 95%; /* Approximately 1 inch space on each side, adjust as needed */
-        margin: 0 auto; /* Center the container */
-        padding: 0 15px; /* Add some padding inside the container */
+        max-width: 95%;
+        margin: 0 auto;
+        padding: 0 15px;
       }
-      .shiny-plot-output, .leaflet-container, .plotly { /* Added .plotly for plotly outputs */
+      .shiny-plot-output, .leaflet-container, .plotly {
         border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Add subtle shadow */
-        width: 100% !important; /* Ensure they take full width of their container */
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        width: 100% !important;
       }
-      /* Table styling */
-      table.data { /* Target the table directly */
+      
+      /* Enhanced Table styling */
+      .table-container {
+        margin: 20px 0;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background-color: white;
+      }
+      
+      table.data {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 20px;
+        margin: 0;
         font-size: 15px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
-      table.data th, table.data td {
-        border: 1px solid #ddd;
-        padding: 8px;
+      
+      table.data th {
+        background: linear-gradient(135deg, #001f3f 0%, #004080 100%);
+        color: white;
+        font-weight: bold;
+        padding: 15px 12px;
         text-align: left;
+        border: none;
+        font-size: 16px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
       }
-      /* Highlight table header row (family types) */
-      table.data thead th {
-        background-color: #d9edf7; /* Light blue */
-        color: #001f3f; /* Dark blue text */
+      
+      table.data th:first-child {
+        background: linear-gradient(135deg, #2c5282 0%, #3182ce 100%);
+        border-top-left-radius: 10px;
+      }
+      
+      table.data th:last-child {
+        border-top-right-radius: 10px;
+      }
+      
+      table.data td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        transition: background-color 0.2s ease;
+      }
+      
+      table.data td:first-child {
+        background: linear-gradient(135deg, #e6f3ff 0%, #cce7ff 100%);
+        font-weight: bold;
+        color: #1a365d;
+        border-right: 2px solid #3182ce;
+        position: relative;
+      }
+      
+      table.data td:first-child::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(to bottom, #3182ce, #2c5282);
+      }
+      
+      table.data tbody tr:hover {
+        background-color: #f7fafc;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      table.data tbody tr:hover td:first-child {
+        background: linear-gradient(135deg, #d6f0ff 0%, #b3d9ff 100%);
+      }
+      
+      table.data tbody tr:last-child td {
+        border-bottom: none;
+      }
+      
+      /* Zebra striping */
+      table.data tbody tr:nth-child(even) {
+        background-color: #f8fafc;
+      }
+      
+      /* Total Monthly Cost row highlighting */
+      table.data tbody tr:last-child {
+        background: linear-gradient(135deg, #e6fffa 0%, #b3f5e6 100%);
+        font-weight: bold;
+        border-top: 2px solid #38a169;
+      }
+      
+      table.data tbody tr:last-child td {
+        color: #22543d;
+        font-size: 16px;
         font-weight: bold;
       }
-      /* Highlight first column (cost variables) */
-      table.data tbody td:first-child {
-        background-color: #f0f8ff; /* Very light blue */
+      
+      table.data tbody tr:last-child td:first-child {
+        background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      
+      /* Enhanced first column styling */
+      .highlight-first-col td:first-child {
         font-weight: bold;
+        background-color: #f0f8ff;
+        color: #003366;
+        border-right: 2px solid #007bff;
+      }
+      
+      /* Improved table header */
+      .table-header {
+        background: linear-gradient(to right, #001f3f, #003366);
+        color: white;
+        font-size: 16px;
+      }
+      
+      /* Map popup styling */
+      .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        padding: 10px;
+      }
+      
+      .leaflet-popup-content {
+        margin: 8px 12px;
+        line-height: 1.5;
+      }
+      
+      .map-popup-title {
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 5px;
+        color: #001f3f;
+      }
+      
+      .map-popup-value {
+        font-size: 14px;
+        color: #333;
       }
     "))
   ),
@@ -183,14 +292,14 @@ ui <- fluidPage(
   
   # Main content area with tabset panel
   mainPanel(
-    width = 12, # Make mainPanel occupy full width
+    width = 12,
     tabsetPanel(
-      id = "main_tabs", # Give an ID to the tabset panel
-      selected = "About", # To set 'About' as the default page
+      id = "main_tabs",
+      selected = "About",
       
       # --- About Page ----------------------------------------------------------------
       tabPanel("About",
-               div(class = "content-container", # Apply centering and spacing to the content
+               div(class = "content-container",
                    div(class = "about-section",
                        h2("About Our Project"),
                        p("This dashboard was developed as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program."),
@@ -261,14 +370,14 @@ ui <- fluidPage(
                        div(class = "section-title", "How to Use This Dashboard"),
                        p("Navigating this dashboard is straightforward! Follow these simple steps to explore the cost of living data across Virginia:"),
                        tags$ol(
-                         tags$li("To begin, the 'About' page provides a comprehensive introduction to our project, its importance, our methodology, and a detailed explanation of all the variables used in our calculations. This is a great place to start to understand the context of the data."),
-                         tags$li("Once you're familiar with the project, click on either the 'Minimum Cost' or 'Average Cost' tab at the top of the page. These tabs will take you to the core data visualizations."),
-                         tags$li("On either the 'Minimum Cost' or 'Average Cost' page, you will see a dropdown menu labeled 'Select County or City'. Click on this menu and choose any county or independent city in Virginia."),
-                         tags$li("As soon as you select a county or city, the 'Cost Table', 'Interactive County Map', and 'Cost Breakdown Bar Chart' below will automatically update to display information specific to your chosen location."),
+                         tags$li("To begin, the 'About' page provides a comprehensive introduction to our project, its importance, our methodology, and a detailed explanation of all the variables used in our calculations."),
+                         tags$li("Click on either the 'Minimum Cost' or 'Average Cost' tab at the top of the page. These tabs will take you to the core data visualizations."),
+                         tags$li("On either the 'Minimum Cost' or 'Average Cost' page, you will see a dropdown menu labeled 'Select County or City'. Click on this menu and choose any county or city in Virginia."),
+                         tags$li("When you select a county or city, the 'Cost Table', 'Interactive County Map', and 'Cost Breakdown Bar Chart' below will automatically update to display the data specific to your chosen location."),
                          tags$li("The 'Cost Table' provides a detailed numerical breakdown of expenses for various family types. The 'Interactive County Map' shows the relative cost level across all counties, with your selected county highlighted."),
                          tags$li("The 'Cost Breakdown Bar Chart' visualizes how different expense categories contribute to the total cost. You can hover over any bar on the graph to see precise values and details for that specific cost variable."),
-                         tags$li("Switch between the 'Minimum Cost' and 'Average Cost' tabs to compare different standards of living across Virginia. Feel free to explore different counties and family structures to gain deeper insights!"),
-                         tags$li("If you have any questions or would like to contribute, please refer to the 'Acknowledgement' section at the bottom of the 'About' page.")
+                         tags$li("You can switch between the 'Minimum Cost' and 'Average Cost' tabs to compare different standards of living across Virginia. You can explore different counties and family structures to gain deeper insights!"),
+                         tags$li("More instructions here...")
                        ),
                        
                        div(class = "section-title", "Sources"),
@@ -278,7 +387,7 @@ ui <- fluidPage(
                          tags$li("Bureau of Labor Statistics (consumer price index, employment costs)"),
                          tags$li("Local government data (property tax rates, utility costs)"),
                          tags$li("Other relevant research and surveys."),
-                         tags$li("Further specific sources will be listed here upon integration of final datasets.")
+                         tags$li("More data sources here...")
                        ),
                        
                        div(class = "section-title", "Acknowledgement"),
@@ -291,7 +400,7 @@ ui <- fluidPage(
       
       # --- Minimum Cost Page --------------------------------------------------------
       tabPanel("Minimum Cost",
-               div(class = "content-container", # Apply centering and spacing to the content
+               div(class = "content-container",
                    div(class = "intro-text",
                        h4("What is Minimum Cost?"),
                        p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")
@@ -299,15 +408,17 @@ ui <- fluidPage(
                    selectInput("county_min", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Minimum Cost Table"),
                    div(class = "section-desc", "Monthly minimum cost by category for different family types in the selected area."),
-                   tableOutput("min_table"),
+                   div(class = "table-container",
+                       tableOutput("min_table")
+                   ),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the average minimum cost level across all Virginia counties. The selected county is highlighted."),
-                   leafletOutput("min_map", height = 450), # Slightly reduced height
+                   div(class = "section-desc", "This map displays the total minimum monthly cost across all Virginia counties. The selected county is highlighted."),
+                   leafletOutput("min_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
                    div(class = "section-desc", "A visualization of the minimum cost components for the selected county/city. Hover over bars for details!"),
-                   plotlyOutput("min_plot", height = 350), # Changed to plotlyOutput
-                   div(class = "future-text-section", # This div now has additional margin-top
-                       h4("Additional Insights and Data"),
+                   plotlyOutput("min_plot", height = 350),
+                   div(class = "future-text-section",
+                       h4("Additional"),
                        p("This section is reserved for future analysis and detailed explanations related to minimum cost data. We plan to include more in-depth breakdowns, comparisons, and policy implications here as more datasets are integrated.")
                    )
                )
@@ -315,7 +426,7 @@ ui <- fluidPage(
       
       # --- Average Cost Page ---------------------------------------------------------
       tabPanel("Average Cost",
-               div(class = "content-container", # Apply centering and spacing to the content
+               div(class = "content-container",
                    div(class = "intro-text",
                        h4("What is Average Cost?"),
                        p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")
@@ -323,15 +434,17 @@ ui <- fluidPage(
                    selectInput("county_avg", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Average Cost Table"),
                    div(class = "section-desc", "Monthly average cost by category for different family types in the selected area."),
-                   tableOutput("avg_table"),
+                   div(class = "table-container",
+                       tableOutput("avg_table")
+                   ),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the average cost level across all Virginia counties. The selected county is highlighted."),
-                   leafletOutput("avg_map", height = 450), # Slightly reduced height
+                   div(class = "section-desc", "This map displays the total average monthly cost across all Virginia counties. The selected county is highlighted."),
+                   leafletOutput("avg_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
                    div(class = "section-desc", "A visualization of the average cost components for the selected county/city. Hover over bars for details!"),
-                   plotlyOutput("avg_plot", height = 350), # Changed to plotlyOutput
-                   div(class = "future-text-section", # This div now has additional margin-top
-                       h4("Additional Insights and Data"),
+                   plotlyOutput("avg_plot", height = 350),
+                   div(class = "future-text-section",
+                       h4("Additional"),
                        p("This section is reserved for future analysis and detailed explanations related to average cost data. We plan to include more in-depth breakdowns, comparisons, and policy implications here as more datasets are integrated.")
                    )
                )
@@ -343,35 +456,63 @@ ui <- fluidPage(
 # Server Logic
 server <- function(input, output, session) {
   
-  # Reactive expression for Minimum Cost data based on selected county
-  min_cost_data_reactive <- reactive({
-    req(input$county_min) # Ensure a county is selected
-    generate_county_cost_data(input$county_min, base_cost_multiplier = 1) %>%
-      # Filter out 'Hourly Wage' for the graph/table display if needed for some views
+  # Reactive expression for Minimum Cost data (full data with Hourly Wage for tables)
+  min_cost_data_full <- reactive({
+    req(input$county_min)
+    generate_county_cost_data(input$county_min, base_cost_multiplier = 1)
+  })
+  
+  # Reactive expression for Minimum Cost data (excluding Hourly Wage for plots)
+  min_cost_data_plot <- reactive({
+    min_cost_data_full() %>%
       filter(`Cost Variable` != "Hourly Wage")
   })
   
-  # Reactive expression for Average Cost data based on selected county
-  avg_cost_data_reactive <- reactive({
-    req(input$county_avg) # Ensure a county is selected
-    generate_county_cost_data(input$county_avg, base_cost_multiplier = 1.5) %>% # Higher base for average
-      # Filter out 'Hourly Wage' for the graph/table display if needed for some views
+  # Reactive expression for total minimum cost for selected county
+  min_total_cost <- reactive({
+    req(input$county_min)
+    generate_county_total_cost(input$county_min, 1)
+  })
+  
+  # Reactive expression for Average Cost data (full data with Hourly Wage for tables)
+  avg_cost_data_full <- reactive({
+    req(input$county_avg)
+    generate_county_cost_data(input$county_avg, base_cost_multiplier = 1.5)
+  })
+  
+  # Reactive expression for Average Cost data (excluding Hourly Wage for plots)
+  avg_cost_data_plot <- reactive({
+    avg_cost_data_full() %>%
       filter(`Cost Variable` != "Hourly Wage")
   })
+  
+  # Reactive expression for total average cost for selected county
+  avg_total_cost <- reactive({
+    req(input$county_avg)
+    generate_county_total_cost(input$county_avg, 1.5)
+  })
+  
+  # Function to format table with Total Cost row
+  format_cost_table <- function(df) {
+    # Calculate column sums (excluding the "Cost Variable" column)
+    total_row <- df %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(`Cost Variable` = "Total Cost")
+    
+    # Combine with original data
+    bind_rows(df, total_row)
+  }
   
   # --- Minimum Cost Tab Outputs ---------------------------------------------------
   
   output$min_table <- renderTable({
-    # Use the reactive data that excludes Hourly Wage for the table
-    min_cost_data_reactive()
+    format_cost_table(min_cost_data_full())
   }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE,
-  # Added callback to apply custom styling to table rows
-  sanitize.text.function = function(x) x # Prevent Shiny from escaping HTML
+  sanitize.text.function = function(x) x
   )
   
   output$min_plot <- renderPlotly({
-    plot_data <- min_cost_data_reactive() %>%
-     
+    plot_data <- min_cost_data_plot() %>%
       mutate(`Cost Variable` = factor(`Cost Variable`, levels = unique(`Cost Variable`)))
     
     p <- ggplot(plot_data, aes(x = `Cost Variable`, y = `1 Adult: 19–50 Years`,
@@ -381,21 +522,25 @@ server <- function(input, output, session) {
            y = "Monthly Cost ($)",
            x = "Cost Variable") +
       theme_minimal() +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9, margin = margin(t = 10))) # Adjusted size and margin for all labels
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9, margin = margin(t = 10)),
+            plot.title = element_text(hjust = 0.5))
     
     ggplotly(p, tooltip = "text") %>%
-      layout(hovermode = "x unified") # Unify tooltips when hovering over x-axis categories
+      layout(hovermode = "x unified")
   })
   
   output$min_map <- renderLeaflet({
-    
-    # Base palette for all counties
     pal_min <- colorNumeric(palette = c("green", "yellow", "red"), domain = va_map_data_min$Cost)
     
-    # Find the selected county's polygon
     selected_county_polygon <- va_counties %>% filter(NAME == input$county_min)
     
-    # Create the base map
+    # Custom popup content with vertical layout
+    popup_content <- paste0(
+      "<div class='map-popup-title'>", input$county_min, "</div>",
+      "<div class='map-popup-value'><strong>Total Minimum Monthly Cost:</strong><br>$", 
+      round(min_total_cost(), 0), "</div>"
+    )
+    
     map_obj <- leaflet(va_map_data_min) %>%
       addTiles() %>%
       addPolygons(
@@ -411,26 +556,32 @@ server <- function(input, output, session) {
           dashArray = "",
           fillOpacity = 0.7,
           bringToFront = TRUE),
-        label = ~paste(NAME, "<br>Cost: $", round(Cost, 0))
+        popup = ~paste0("<div class='map-popup-title'>", NAME, "</div>",
+                        "<div class='map-popup-value'><strong>Total Monthly Cost:</strong><br>$", 
+                        round(Cost, 0), "</div>"),
+        label = ~paste0("County: ", NAME, "<br>Total Monthly Cost: $", round(Cost, 0)),
+        labelOptions = labelOptions(
+          style = list("font-weight" = "normal", padding = "3px 8px"),
+          textsize = "15px",
+          direction = "auto"
+        )
       ) %>%
-      addLegend(pal = pal_min, values = ~Cost, title = "Min Cost Estimate")
+      addLegend(pal = pal_min, values = ~Cost, title = "Total Monthly Cost")
     
-    # Calculate centroid coordinates for the selected county
     center_coords <- sf::st_coordinates(sf::st_centroid(selected_county_polygon))
     
-    # Only set the view if coordinates are valid
     if (!is.null(center_coords) && !any(is.na(center_coords))) {
       map_obj <- map_obj %>%
         setView(lng = center_coords[1], lat = center_coords[2], zoom = 8) %>%
-        # Add a specific highlight for the selected county
         addPolygons(
           data = selected_county_polygon,
-          fillColor = "#007bff", # A distinct highlight color (blue)
-          weight = 3, # Thicker border
+          fillColor = "#007bff",
+          weight = 3,
           opacity = 1,
-          color = "darkblue", # Darker border
+          color = "darkblue",
           fillOpacity = 0.8,
-          label = ~paste(NAME, "<br>Selected County"),
+          popup = popup_content,
+          label = ~paste0("County: ", NAME, "<br>Total Monthly Cost: $", round(min_total_cost(), 0), "<br>(Selected County)"),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal", padding = "3px 8px"),
             textsize = "15px",
@@ -444,39 +595,41 @@ server <- function(input, output, session) {
   # --- Average Cost Tab Outputs ----------------------------------------------------
   
   output$avg_table <- renderTable({
-    # Use the reactive data that excludes Hourly Wage for the table
-    avg_cost_data_reactive()
+    format_cost_table(avg_cost_data_full())
   }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE,
-  # Added callback to apply custom styling to table rows
-  sanitize.text.function = function(x) x # Prevent Shiny from escaping HTML
+  sanitize.text.function = function(x) x
   )
   
   output$avg_plot <- renderPlotly({
-    plot_data <- avg_cost_data_reactive() %>%
-      # Ensure 'Cost Variable' is a factor for correct ordering in ggplot
+    plot_data <- avg_cost_data_plot() %>%
       mutate(`Cost Variable` = factor(`Cost Variable`, levels = unique(`Cost Variable`)))
     
     p <- ggplot(plot_data, aes(x = `Cost Variable`, y = `1 Adult: 19–50 Years`,
                                text = paste("Variable:", `Cost Variable`, "<br>Cost: $", `1 Adult: 19–50 Years`))) +
-      geom_bar(stat = "identity", fill = "darkorange") + # Different color for average cost plot
+      geom_bar(stat = "identity", fill = "darkorange") +
       labs(title = paste("Average Cost Breakdown -", input$county_avg),
            y = "Monthly Cost ($)",
            x = "Cost Variable") +
       theme_minimal() +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9, margin = margin(t = 10))) # Adjusted size and margin for all labels
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9, margin = margin(t = 10)),
+            plot.title = element_text(hjust = 0.5))
     
     ggplotly(p, tooltip = "text") %>%
-      layout(hovermode = "x unified") # Unify tooltips when hovering over x-axis categories
+      layout(hovermode = "x unified")
   })
   
   output$avg_map <- renderLeaflet({
-    # Base palette for all counties
-    pal_avg <- colorNumeric(palette = c("lightgreen", "gold", "darkred"), domain = va_map_data_avg$Cost) # Different color palette
+    pal_avg <- colorNumeric(palette = c("lightgreen", "gold", "darkred"), domain = va_map_data_avg$Cost)
     
-    # Find the selected county's polygon
     selected_county_polygon <- va_counties %>% filter(NAME == input$county_avg)
     
-    # Create the base map
+    # Custom popup content with vertical layout
+    popup_content <- paste0(
+      "<div class='map-popup-title'>", input$county_avg, "</div>",
+      "<div class='map-popup-value'><strong>Total Monthly Cost:</strong><br>$", 
+      round(avg_total_cost(), 0), "</div>"
+    )
+    
     map_obj <- leaflet(va_map_data_avg) %>%
       addTiles() %>%
       addPolygons(
@@ -492,26 +645,32 @@ server <- function(input, output, session) {
           dashArray = "",
           fillOpacity = 0.7,
           bringToFront = TRUE),
-        label = ~paste(NAME, "<br>Cost: $", round(Cost, 0))
+        popup = ~paste0("<div class='map-popup-title'>", NAME, "</div>",
+                        "<div class='map-popup-value'><strong>Total Monthly Cost:</strong><br>$", 
+                        round(Cost, 0), "</div>"),
+        label = ~paste0("County: ", NAME, "<br>Total Monthly Cost: $", round(Cost, 0)),
+        labelOptions = labelOptions(
+          style = list("font-weight" = "normal", padding = "3px 8px"),
+          textsize = "15px",
+          direction = "auto"
+        )
       ) %>%
-      addLegend(pal = pal_avg, values = ~Cost, title = "Avg Cost Estimate")
+      addLegend(pal = pal_avg, values = ~Cost, title = "Total Average<br>Monthly Cost")
     
-    # Calculate centroid coordinates for the selected county
     center_coords <- sf::st_coordinates(sf::st_centroid(selected_county_polygon))
     
-    # Only set the view if coordinates are valid
     if (!is.null(center_coords) && !any(is.na(center_coords))) {
       map_obj <- map_obj %>%
         setView(lng = center_coords[1], lat = center_coords[2], zoom = 8) %>%
-        # Add a specific highlight for the selected county
         addPolygons(
           data = selected_county_polygon,
-          fillColor = "#dc3545", # A distinct highlight color (red)
-          weight = 3, # Thicker border
+          fillColor = "#dc3545",
+          weight = 3,
           opacity = 1,
-          color = "darkred", # Darker border
+          color = "darkred",
           fillOpacity = 0.8,
-          label = ~paste(NAME, "<br>Selected County"),
+          popup = popup_content,
+          label = ~paste0("County: ", NAME, "<br>Total Average Monthly Cost: $", round(avg_total_cost(), 0), "<br>(Selected County)"),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal", padding = "3px 8px"),
             textsize = "15px",
