@@ -4,9 +4,9 @@ library(tigris)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
-library(ggplot2) 
+library(ggplot2)
 library(plotly)
-library(readxl)
+library(readxl) 
 
 options(tigris_use_cache = TRUE)
 
@@ -14,13 +14,149 @@ options(tigris_use_cache = TRUE)
 va_counties <- counties(state = "VA", cb = TRUE, class = "sf")
 virginia_county_names <- sort(unique(va_counties$NAME))
 
-# --- Sample Data Generation ------------------------------------------------------
+# --- Pre-process Utility Data --------------------------------------
+
+# Load the minimum and average utility data from CSV files.
+min_utilities_raw <- read_csv("minimum_final_utilities.csv")
+avg_utilities_raw <- read_csv("average_final_utilities.csv")
+
+# Function to standardize column names in utility dataframes and ensure correct types.
+standardize_utility_cols <- function(df, type_name) {
+  df_renamed <- df %>%
+    rename(
+      # Standardize '19-50 Years' to use en-dash '–' as used in your app
+      `1 Adult: 19–50 Years` = `1 Adult: 19-50 Years`,
+      `2 Adults: 19–50 Years` = `2 Adults: 19-50 Years`,
+      
+      # Standardize '1 Child' and '2 Children' to include '+' as used in your app
+      `1 Adult + 1 Child` = `1 Adult 1 Child`,
+      `2 Adults + 2 Children` = `2 Adults 2 Children`,
+      
+      # Ensure 65+ columns are consistent (these should already match based on common naming)
+      `1 Adult: 65+` = `1 Adult 65+`,
+      `2 Adults: 65+` = `2 Adults 65+`
+    ) %>%
+    # Ensure 'County' column is character and TRIM WHITESPACE!
+    # This is crucial for accurate matching with `input$county_min` and `input$county_avg`.
+    mutate(County = as.character(trimws(County))) %>%
+    # Convert all relevant utility columns to numeric, coercing any non-numeric values to NA.
+    # This ensures proper calculations later.
+    mutate(across(starts_with("1 Adult") | starts_with("2 Adults"), as.numeric)) %>%
+    mutate(`Total Monthly Cost` = as.numeric(`Total Monthly Cost`))
+  
+  # Diagnostic prints to help with debugging the data loading and standardization.
+  message(paste0("--- Processed ", type_name, " Utilities Data (first 5 rows): ---"))
+  print(head(df_renamed, 5))
+  message(paste0("--- Glimpse of Processed ", type_name, " Utilities Data: ---"))
+  glimpse(df_renamed)
+  
+  return(df_renamed)
+}
+
+# Apply standardization to both minimum and average utility dataframes.
+min_utilities_data <- standardize_utility_cols(min_utilities_raw, "Minimum")
+avg_utilities_data <- standardize_utility_cols(avg_utilities_raw, "Average")
+
+# --- NEW DIAGNOSTIC MESSAGES FOR COUNTY NAMES ---
+message("\n--- Unique County Names Loaded from minimum_final_utilities.csv (after standardization) ---")
+print(sort(unique(min_utilities_data$County)))
+message("\n--- Unique County Names Loaded from average_final_utilities.csv (after standardization) ---")
+print(sort(unique(avg_utilities_data$County)))
+message("\n--- Unique County Names from Tigris (used for Shiny Dropdown Choices) ---")
+print(sort(unique(virginia_county_names)))
+# --- END NEW DIAGNOSTIC MESSAGES ---
+
+
+# Define family structures and cost variables, consistent with the UI.
+# These lists are critical for defining the structure of the cost tables.
+family_structures_list <- c(
+  "1 Adult: 19–50 Years",
+  "2 Adults: 19–50 Years",
+  "1 Adult + 1 Child",
+  "2 Adults + 2 Children",
+  "1 Adult: 65+",
+  "2 Adults: 65+"
+)
+
+cost_variables_list <- c(
+  "Housing", "Food", "Transportation", "Taxes", "Healthcare",
+  "Childcare", "Technology", "Elder Care", "Utilities",
+  "Miscellaneous"
+)
+
+# --- Function to generate data specifically for the cost tables -----------------
+
+generate_table_display_data <- function(county_name, type) {
+  
+  # Create a base dataframe for the table, filled with NA_real_ (R's numeric NA).
+  # This ensures all non-utility cells are initially NA.
+  df_table <- as.data.frame(matrix(NA_real_,
+                                   nrow = length(cost_variables_list),
+                                   ncol = length(family_structures_list),
+                                   dimnames = list(cost_variables_list, family_structures_list)))
+  
+  # Add the 'Cost Variable' column and reorder it to be the first column.
+  df_table$`Cost Variable` <- rownames(df_table)
+  df_table <- df_table %>%
+    select(`Cost Variable`, everything())
+  
+  # Select the correct utility dataset (minimum or average) based on the 'type' argument.
+  utility_source_data <- if (type == "min") min_utilities_data else avg_utilities_data
+  
+  # Trim whitespace from the input county name for robust comparison.
+  # This handles potential leading/trailing spaces in user input or CSV.
+  county_name_trimmed <- trimws(county_name) 
+  
+  # Find the row in the utility data corresponding to the selected county.
+  # The 'County' column in utility_source_data is already trimmed by standardize_utility_cols.
+  utility_row <- utility_source_data %>% filter(County == county_name_trimmed)
+  
+  # Check if the county was found in the utility data for debugging.
+  message(paste0("--- Searching for ", type, " utility data for: '", county_name_trimmed, "' ---"))
+  if (nrow(utility_row) == 0) {
+    message(paste0("WARNING: No ", type, " utility data found for county: '", county_name_trimmed, "'. Please check county name exact match in CSV."))
+    # Diagnostic: Print all unique county names in the utility data to help user debug
+    # This was already here and helps debug during runtime.
+    message(paste0("Available counties in utility data for type ", type, " (from active data): ", paste(sort(unique(utility_source_data$County)), collapse = ", ")))
+  } else {
+    message(paste0("INFO: Found ", type, " utility data for county: '", county_name_trimmed, "'"))
+    # Diagnostic: Print the specific utility row found.
+    print(utility_row) 
+  }
+  
+  # Populate the "Utilities" row in the table dataframe with actual data.
+  # This is where the utilities data is merged into the dashboard's table structure.
+  if (nrow(utility_row) > 0) { # Proceed only if data for the county was found.
+    for (col_name in family_structures_list) {
+      if (col_name %in% colnames(utility_row)) { # Ensure the column exists in the utility data.
+        value_to_assign <- utility_row[[col_name]]
+        # Only assign if the value is not NA in the source utility data.
+        # If it's NA in source, it will remain NA_real_ from the initial matrix creation.
+        if (!is.na(value_to_assign)) {
+          df_table[df_table$`Cost Variable` == "Utilities", col_name] <- value_to_assign
+        }
+      }
+    }
+    # Populate the 'Total Monthly Cost' column for the Utilities row if available.
+    if ("Total Monthly Cost" %in% colnames(utility_row)) {
+      df_table[df_table$`Cost Variable` == "Utilities", "Total Monthly Cost"] <- utility_row$`Total Monthly Cost`
+    }
+  }
+  
+  return(df_table)
+}
+
+# --- Sample Data Generation (RETAINED for Maps and Plots) ------------------------
+# These functions are intentionally kept as they currently provide the only data
+# for the interactive maps and cost breakdown bar charts. Removing them would disable
+# those visualizations entirely, as real data for all cost categories is not yet
+# provided for these components.
 generate_county_cost_data <- function(county_name, base_cost_multiplier = 1) {
   set.seed(nchar(county_name) * 100 + which(virginia_county_names == county_name))
   
   cost_variables <- c("Housing", "Food", "Transportation", "Taxes", "Healthcare",
                       "Childcare", "Technology", "Elder Care", "Utilities",
-                      "Miscellaneous")
+                      "Miscellaneous") 
   
   family_structures <- c(
     "1 Adult: 19–50 Years",
@@ -43,16 +179,19 @@ generate_county_cost_data <- function(county_name, base_cost_multiplier = 1) {
   return(df)
 }
 
+# This function sums costs for the maps. It uses the original sample data logic.
 generate_county_total_cost <- function(county_name, base_cost_multiplier = 1) {
   cost_data <- generate_county_cost_data(county_name, base_cost_multiplier)
   total_cost <- cost_data %>%
-    filter(`Cost Variable` != "Hourly Wage") %>%
-    summarise(total = sum(`1 Adult: 19–50 Years`)) %>%
+    # Filter out 'Hourly Wage' as it's not a cost component for map totals
+    filter(`Cost Variable` != "Hourly Wage") %>% 
+    summarise(total = sum(`1 Adult: 19–50 Years`)) %>% # Sums for a specific family type as used for map colors
     pull(total)
   return(total_cost)
 }
 
-# Generate map data with total costs for all counties
+# Generate map data with total costs for all counties (UNCHANGED)
+# These use the original generate_county_total_cost logic for sample map data.
 sample_map_costs_min <- data.frame(
   NAME = virginia_county_names,
   Cost = sapply(virginia_county_names, function(x) generate_county_total_cost(x, 1))
@@ -66,7 +205,7 @@ sample_map_costs_avg <- data.frame(
 va_map_data_min <- left_join(va_counties, sample_map_costs_min, by = "NAME")
 va_map_data_avg <- left_join(va_counties, sample_map_costs_avg, by = "NAME")
 
-# UI Definition
+# UI Definition (UNCHANGED)
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -308,7 +447,6 @@ ui <- fluidPage(
                        p("This tool includes both minimum and average cost estimates, breaking down expenses into key categories for various common family types."),
                        
                        div(class = "section-title", "Why is This Important?"),
-                       p("Understanding the true cost of living is crucial for several reasons:"),
                        tags$ul(
                          tags$li("For individuals and families, it helps in financial planning, budgeting, and making decisions about where to live."),
                          tags$li("For policymakers, it provides data to develop effective social programs, minimum wage policies, and affordable housing initiatives."),
@@ -340,7 +478,7 @@ ui <- fluidPage(
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Healthcare"),
-                                     p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average healthcare utilization rates.")
+                                     p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average health care utilization rates.")
                          )),
                          tags$li(div(class = "about-variable-item",
                                      h4("Childcare"),
@@ -410,7 +548,7 @@ ui <- fluidPage(
                    div(class = "section-title", "Minimum Cost Table"),
                    div(class = "section-desc", "Monthly minimum cost by category for different family types in the selected area."),
                    div(class = "table-container",
-                       tableOutput("min_table")
+                       tableOutput("min_table") # This output will use the new data logic
                    ),
                    div(class = "section-title", "Interactive County Map"),
                    div(class = "section-desc", "This map displays the total minimum monthly cost across all Virginia counties. The selected county is highlighted."),
@@ -436,7 +574,7 @@ ui <- fluidPage(
                    div(class = "section-title", "Average Cost Table"),
                    div(class = "section-desc", "Monthly average cost by category for different family types in the selected area."),
                    div(class = "table-container",
-                       tableOutput("avg_table")
+                       tableOutput("avg_table") # This output will use the new data logic
                    ),
                    div(class = "section-title", "Interactive County Map"),
                    div(class = "section-desc", "This map displays the total average monthly cost across all Virginia counties. The selected county is highlighted."),
@@ -457,61 +595,93 @@ ui <- fluidPage(
 # Server Logic
 server <- function(input, output, session) {
   
-  # Reactive expression for Minimum Cost data (full data with Hourly Wage for tables)
-  min_cost_data_full <- reactive({
+  # Reactive expression for Minimum Cost data for tables.
+  # This uses 'generate_table_display_data' which populates only 'Utilities'
+  # and sets others to NA.
+  min_cost_data_for_table <- reactive({
     req(input$county_min)
-    generate_county_cost_data(input$county_min, base_cost_multiplier = 1)
+    generate_table_display_data(input$county_min, "min")
   })
   
-  # Reactive expression for Minimum Cost data (excluding Hourly Wage for plots)
+  # Reactive expression for Minimum Cost data for plots (uses sample data).
+  # This remains unchanged as per your instruction to keep sample data for plots/maps.
   min_cost_data_plot <- reactive({
-    min_cost_data_full() %>%
+    generate_county_cost_data(input$county_min, base_cost_multiplier = 1) %>%
       filter(`Cost Variable` != "Hourly Wage")
   })
   
-  # Reactive expression for total minimum cost for selected county
+  # Reactive expression for total minimum cost for selected county (for maps, uses sample data).
+  # This remains unchanged as per your instruction to keep sample data for plots/maps.
   min_total_cost <- reactive({
     req(input$county_min)
     generate_county_total_cost(input$county_min, 1)
   })
   
-  # Reactive expression for Average Cost data (full data with Hourly Wage for tables)
-  avg_cost_data_full <- reactive({
+  # Reactive expression for Average Cost data for tables.
+  # This uses 'generate_table_display_data' which populates only 'Utilities'
+  # and sets others to NA.
+  avg_cost_data_for_table <- reactive({
     req(input$county_avg)
-    generate_county_cost_data(input$county_avg, base_cost_multiplier = 1.5)
+    generate_table_display_data(input$county_avg, "avg")
   })
   
-  # Reactive expression for Average Cost data (excluding Hourly Wage for plots)
+  # Reactive expression for Average Cost data for plots (uses sample data).
+  # This remains unchanged as per your instruction to keep sample data for plots/maps.
   avg_cost_data_plot <- reactive({
-    avg_cost_data_full() %>%
+    generate_county_cost_data(input$county_avg, base_cost_multiplier = 1.5) %>%
       filter(`Cost Variable` != "Hourly Wage")
   })
   
-  # Reactive expression for total average cost for selected county
+  # Reactive expression for total average cost for selected county (for maps, uses sample data).
+  # This remains unchanged as per your instruction to keep sample data for plots/maps.
   avg_total_cost <- reactive({
     req(input$county_avg)
     generate_county_total_cost(input$county_avg, 1.5)
   })
   
-  # Function to format table with Total Cost row
+  # Function to format table with Total Cost row.
+  # This function is crucial for displaying NA values as "N/A" and correctly
+  # calculating the total row, considering that most data points might be NA.
   format_cost_table <- function(df) {
-    # Calculate column sums (excluding the "Cost Variable" column)
-    total_row <- df %>%
-      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
-      mutate(`Cost Variable` = "Total Cost")
+    # Isolate numeric columns for summation.
+    df_numeric_only <- df %>% select(-`Cost Variable`)
     
-    # Combine with original data
-    bind_rows(df, total_row)
+    # Calculate column sums for numeric columns, ignoring NAs.
+    # sum(., na.rm = TRUE) will sum only the non-NA values (i.e., utilities costs).
+    # If all values in a column are NA, the sum will be 0.
+    total_row_values <- df_numeric_only %>%
+      summarise(across(everything(), ~sum(., na.rm = TRUE)))
+    
+    # Create the 'Total Cost' row with its label.
+    total_row <- total_row_values %>%
+      mutate(`Cost Variable` = "Total Cost") %>%
+      select(`Cost Variable`, everything())
+    
+    # Convert all numeric columns in the main data frame to character for formatting.
+    # Replace NA values with "N/A" string and round numeric values to 2 decimal places.
+    df_formatted <- df %>%
+      mutate(across(where(is.numeric), ~ifelse(is.na(.), "N/A", as.character(round(., 2)))))
+    
+    # Convert numeric values in the total row to character.
+    # If the sum is NA or 0 (meaning no data, or only NAs for that family type), display "N/A".
+    total_row_formatted <- total_row %>%
+      mutate(across(where(is.numeric), ~ifelse(is.na(.) | . == 0, "N/A", as.character(round(., 2)))))
+    
+    # Combine the formatted main data frame with the formatted total row.
+    bind_rows(df_formatted, total_row_formatted)
   }
   
   # --- Minimum Cost Tab Outputs ---------------------------------------------------
   
   output$min_table <- renderTable({
-    format_cost_table(min_cost_data_full())
+    # Use the 'min_cost_data_for_table' reactive, which provides the utilities data
+    # and NAs for other categories, and then format it.
+    format_cost_table(min_cost_data_for_table())
   }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE,
-  sanitize.text.function = function(x) x
+  sanitize.text.function = function(x) x # Keeps HTML/special characters as is
   )
   
+  # Plot output (uses sample data) - UNCHANGED
   output$min_plot <- renderPlotly({
     plot_data <- min_cost_data_plot() %>%
       mutate(`Cost Variable` = factor(`Cost Variable`, levels = unique(`Cost Variable`)))
@@ -530,6 +700,7 @@ server <- function(input, output, session) {
       layout(hovermode = "x unified")
   })
   
+  # Map output (uses sample data) - UNCHANGED
   output$min_map <- renderLeaflet({
     pal_min <- colorNumeric(palette = c("green", "yellow", "red"), domain = va_map_data_min$Cost)
     
@@ -596,11 +767,14 @@ server <- function(input, output, session) {
   # --- Average Cost Tab Outputs ----------------------------------------------------
   
   output$avg_table <- renderTable({
-    format_cost_table(avg_cost_data_full())
+    # Use the 'avg_cost_data_for_table' reactive, which provides the utilities data
+    # and NAs for other categories, and then format it.
+    format_cost_table(avg_cost_data_for_table())
   }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE,
   sanitize.text.function = function(x) x
   )
   
+  # Plot output (uses sample data) - UNCHANGED
   output$avg_plot <- renderPlotly({
     plot_data <- avg_cost_data_plot() %>%
       mutate(`Cost Variable` = factor(`Cost Variable`, levels = unique(`Cost Variable`)))
@@ -619,6 +793,7 @@ server <- function(input, output, session) {
       layout(hovermode = "x unified")
   })
   
+  # Map output (uses sample data) - UNCHANGED
   output$avg_map <- renderLeaflet({
     pal_avg <- colorNumeric(palette = c("lightgreen", "gold", "darkred"), domain = va_map_data_avg$Cost)
     
