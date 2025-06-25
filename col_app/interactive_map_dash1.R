@@ -1,3 +1,6 @@
+
+# This is our first darft of the dashboard. 
+
 library(shiny)
 library(tidyverse)
 library(tigris)
