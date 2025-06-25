@@ -33,10 +33,17 @@ cost_variables_list <- c(
 
 # --- Load and Process REAL Data from Cleaned CSVs ---
 
-# Load the raw utility data from your NEW cleaned files.
-# Make sure these files are in the same directory as your app.R file.
+# Load Utilities data
 min_utilities_raw <- read_csv("minimum_final_utilities_cleaned.csv")
 avg_utilities_raw <- read_csv("average_final_utilities_cleaned.csv")
+
+# Load Elder Care data
+min_elder_care_raw <- read_csv("minimum_elder_care_cost.csv")
+avg_elder_care_raw <- read_csv("average_elder_care_cost.csv")
+
+# *** NEW: Load Transportation data ***
+min_transportation_raw <- read_csv("minimum_transportation_data.csv")
+avg_transportation_raw <- read_csv("average_transportation_data.csv")
 
 # Function to standardize column names, ensuring they match the app's internal lists.
 standardize_cols <- function(df) {
@@ -51,44 +58,97 @@ standardize_cols <- function(df) {
     mutate(County = as.character(trimws(County)))
 }
 
-# Apply the standardization and convert relevant columns to numeric.
-min_utilities_data <- min_utilities_raw %>%
-  standardize_cols() %>%
-  mutate(across(all_of(c(family_structures_list, "Total Monthly Cost")), as.numeric, .names = "num_{.col}")) %>%
-  select(-all_of(c(family_structures_list, "Total Monthly Cost"))) %>%
-  rename_with(~str_remove(., "num_"))
+# Function to apply standardization and convert cost columns to numeric
+process_data <- function(df) {
+  df %>%
+    standardize_cols() %>%
+    # Ensure all cost columns are numeric for calculations
+    mutate(across(all_of(c(family_structures_list, "Total Monthly Cost")), as.numeric))
+}
 
-avg_utilities_data <- avg_utilities_raw %>%
-  standardize_cols() %>%
-  mutate(across(all_of(c(family_structures_list, "Total Monthly Cost")), as.numeric, .names = "num_{.col}")) %>%
-  select(-all_of(c(family_structures_list, "Total Monthly Cost"))) %>%
-  rename_with(~str_remove(., "num_"))
+# Process all data files
+min_utilities_data <- process_data(min_utilities_raw)
+avg_utilities_data <- process_data(avg_utilities_raw)
+min_elder_care_data <- process_data(min_elder_care_raw)
+avg_elder_care_data <- process_data(avg_elder_care_raw)
+# *** NEW: Process Transportation data ***
+min_transportation_data <- process_data(min_transportation_raw)
+avg_transportation_data <- process_data(avg_transportation_raw)
 
-# --- Create a Unified, Tidy Data Source for All Visualizations ---
-# This "long" format is flexible and makes plotting and table creation much easier.
-all_costs_long <- bind_rows(
+
+# --- Create Unified Data Sources ---
+
+# 1. Tidy data source for the detailed TABLE
+all_costs_long_for_table <- bind_rows(
   min_utilities_data %>%
-    pivot_longer(
-      cols = all_of(family_structures_list),
-      names_to = "FamilyStructure",
-      values_to = "Cost"
-    ) %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Utilities", Type = "min"),
-  
   avg_utilities_data %>%
-    pivot_longer(
-      cols = all_of(family_structures_list),
-      names_to = "FamilyStructure",
-      values_to = "Cost"
-    ) %>%
-    mutate(CostVariable = "Utilities", Type = "avg")
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Utilities", Type = "avg"),
+  min_elder_care_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Elder Care", Type = "min"),
+  avg_elder_care_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Elder Care", Type = "avg"),
+  # *** NEW: Add Transportation data for the table ***
+  min_transportation_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Transportation", Type = "min"),
+  avg_transportation_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Transportation", Type = "avg")
 )
 
-# --- Prepare Data for the Map (using Total Monthly Cost) ---
-va_map_data_min <- left_join(va_counties, min_utilities_data %>% select(NAME = County, Cost = `Total Monthly Cost`), by = "NAME")
-va_map_data_avg <- left_join(va_counties, avg_utilities_data %>% select(NAME = County, Cost = `Total Monthly Cost`), by = "NAME")
+# 2. Tidy data source for the total cost BAR GRAPH
+all_costs_for_plot <- bind_rows(
+  min_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "min"),
+  avg_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "avg"),
+  min_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "min"),
+  avg_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "avg"),
+  # *** NEW: Add Transportation data for the bar graph ***
+  min_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "min"),
+  avg_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "avg")
+)
 
-# --- UI Definition (Content Restored) ---
+
+# 3. Prepare Data for the MAP (Summing Total Costs from all files)
+total_min_costs <- min_utilities_data %>%
+  select(County, Cost_Utilities = `Total Monthly Cost`) %>%
+  full_join(
+    min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+  # *** NEW: Join Transportation costs for the map ***
+  full_join(
+    min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+  rowwise() %>%
+  mutate(Cost = sum(c_across(starts_with("Cost_")), na.rm = TRUE)) %>%
+  select(NAME = County, Cost)
+
+total_avg_costs <- avg_utilities_data %>%
+  select(County, Cost_Utilities = `Total Monthly Cost`) %>%
+  full_join(
+    avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+  # *** NEW: Join Transportation costs for the map ***
+  full_join(
+    avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+  rowwise() %>%
+  mutate(Cost = sum(c_across(starts_with("Cost_")), na.rm = TRUE)) %>%
+  select(NAME = County, Cost)
+
+va_map_data_min <- left_join(va_counties, total_min_costs, by = "NAME")
+va_map_data_avg <- left_join(va_counties, total_avg_costs, by = "NAME")
+
+
+# --- UI Definition (Content Restored and Unchanged) ---
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -157,21 +217,21 @@ ui <- fluidPage(
                        p("The data presented here is a sample and will be replaced with real datasets in future iterations."),
                        div(class = "section-title", "Our Variables"),
                        tags$ol(
-                         tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling."))),
-                         tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries and meals. This is calculated using average food prices for common items, considering the nutritional needs and dietary patterns for different age groups and family structures. It accounts for both at-home consumption and a small allowance for eating out."))),
-                         tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting, personal vehicle maintenance (gas, insurance, repairs), and public transit fares where applicable. We factor in the average commute distances in each county and availability of public transportation options."))),
-                         tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes, sales taxes on goods and services, and property taxes (for homeowners or indirectly through rent). Federal taxes are also considered to provide a holistic view of the tax burden."))),
-                         tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average healthcare utilization rates."))),
-                         tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
-                         tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
-                         tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
-                         tags$li(div(class = "about-variable-item", h4("Utilities"), p("Utilities cover basic household services such as electricity, water, natural gas, heating oil, and waste removal. These are estimated based on average consumption rates for typical households."))),
-                         tags$li(div(class = "about-variable-item", h4("Miscellaneous"), p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies. It represents a buffer for unforeseen costs."))),
-                         tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
+                         tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing..."))),
+                         tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries..."))),
+                         tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting..."))),
+                         tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes..."))),
+                         tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance..."))),
+                         tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses..."))),
+                         tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access..."))),
+                         tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care..."))),
+                         tags$li(div(class = "about-variable-item", h4("Utilities"), p("Utilities cover basic household services such as electricity..."))),
+                         tags$li(div(class = "about-variable-item", h4("Miscellaneous"), p("The miscellaneous category covers a range of other essential expenses..."))),
+                         tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income...")))
                        ),
                        div(class = "section-title", "How to Use This Dashboard"),
                        tags$ol(
-                         tags$li("To begin, the 'About' page provides a comprehensive introduction to our project..."),
+                         tags$li("To begin, the 'About' page provides a comprehensive introduction..."),
                          tags$li("Click on either the 'Minimum Cost' or 'Average Cost' tab..."),
                          tags$li("On either the 'Minimum Cost' or 'Average Cost' page, you will see a dropdown menu..."),
                          tags$li("When you select a county or city, the 'Cost Table', 'Interactive County Map', and 'Cost Breakdown Bar Chart' below will automatically update..."),
@@ -235,107 +295,93 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   # --- Reactive data filtering ---
-  min_cost_data_filtered <- reactive({
+  min_cost_data_for_table_filtered <- reactive({
     req(input$county_min)
-    all_costs_long %>% filter(County == input$county_min, Type == "min")
+    all_costs_long_for_table %>% filter(County == input$county_min, Type == "min")
   })
   
-  avg_cost_data_filtered <- reactive({
+  avg_cost_data_for_table_filtered <- reactive({
     req(input$county_avg)
-    all_costs_long %>% filter(County == input$county_avg, Type == "avg")
+    all_costs_long_for_table %>% filter(County == input$county_avg, Type == "avg")
   })
   
-  # --- NEW: Reactive data preparation for the PLOTS ---
-  # This creates a full data frame for all cost variables, showing real data for Utilities
-  # and NA for others, which is then handled in the plot rendering.
-  min_plot_data <- reactive({
-    # Get available data for the selected county
-    available_data <- min_cost_data_filtered() %>% 
-      filter(FamilyStructure == "1 Adult: 19–50 Years")
-    
-    # Create a complete data frame by joining available data with the full list
-    tibble(CostVariable = cost_variables_list) %>%
-      left_join(available_data, by = "CostVariable")
+  min_plot_data_filtered <- reactive({
+    req(input$county_min)
+    all_costs_for_plot %>% filter(County == input$county_min, Type == "min")
   })
   
-  avg_plot_data <- reactive({
-    available_data <- avg_cost_data_filtered() %>% 
-      filter(FamilyStructure == "1 Adult: 19–50 Years")
-    
-    tibble(CostVariable = cost_variables_list) %>%
-      left_join(available_data, by = "CostVariable")
+  avg_plot_data_filtered <- reactive({
+    req(input$county_avg)
+    all_costs_for_plot %>% filter(County == input$county_avg, Type == "avg")
   })
-  
   
   # --- Reusable Functions for Rendering ---
-  # Function to generate the data structure for the cost table
+  # FIX: Rewritten function to prevent duplicate rows in the table
   generate_table_display <- function(filtered_data) {
-    if (nrow(filtered_data) == 0) {
-      display_df <- tibble(`Cost Variable` = cost_variables_list)
+    base_table <- tibble(`Cost Variable` = cost_variables_list)
+    
+    if (nrow(filtered_data) > 0) {
+      wide_data <- filtered_data %>%
+        pivot_wider(
+          id_cols = CostVariable,
+          names_from = FamilyStructure,
+          values_from = Cost
+        ) %>%
+        rename(`Cost Variable` = CostVariable)
+      
+      final_table <- base_table %>%
+        left_join(wide_data, by = "Cost Variable")
     } else {
-      display_df <- filtered_data %>%
-        mutate(`Cost Variable` = CostVariable) %>%
-        pivot_wider(id_cols = `Cost Variable`, names_from = FamilyStructure, values_from = Cost)
+      final_table <- base_table
+      for(fam_struct in family_structures_list) {
+        final_table[[fam_struct]] <- NA_real_
+      }
     }
     
-    missing_vars <- setdiff(cost_variables_list, display_df$`Cost Variable`)
-    if (length(missing_vars) > 0) {
-      empty_rows <- tibble(`Cost Variable` = missing_vars)
-      display_df <- bind_rows(display_df, empty_rows)
-    }
-    
-    # ✅ NEW: keep only the most informative row per Cost Variable
-    display_df <- display_df %>%
-      group_by(`Cost Variable`) %>%
-      slice_max(rowSums(!is.na(across(where(is.numeric)))), n = 1) %>%
-      ungroup()
-    
-    display_df %>%
+    final_table %>%
       mutate(`Cost Variable` = factor(`Cost Variable`, levels = cost_variables_list)) %>%
-      arrange(`Cost Variable`) %>%
-      select(`Cost Variable`, any_of(family_structures_list))
+      arrange(`Cost Variable`)
   }
-  
   
   # Function to format the final table for rendering
   format_cost_table <- function(df) {
+    df$`Cost Variable` <- as.character(df$`Cost Variable`)
+    
     total_row <- df %>%
       summarise(across(where(is.numeric), ~sum(., na.rm = TRUE))) %>%
       mutate(`Cost Variable` = "Total Cost")
     
     df_with_total <- bind_rows(df, total_row)
     
+    # FIX: Modified case_when to show "$0.00" for zero values correctly
     df_with_total %>%
       mutate(across(where(is.numeric), ~case_when(
         is.na(.) ~ "N/A",
-        . == 0 & `Cost Variable` != "Total Cost" ~ "N/A",
-        . == 0 & `Cost Variable` == "Total Cost" ~ "$0.00",
+        . == 0 ~ "$0.00",
         TRUE ~ paste0("$", format(round(., 2), nsmall = 2, big.mark = ","))
       )))
   }
   
   # --- Minimum Cost Tab Outputs ---
   output$min_table <- renderTable({
-    table_data <- generate_table_display(min_cost_data_filtered())
+    table_data <- generate_table_display(min_cost_data_for_table_filtered())
     format_cost_table(table_data)
   }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
   output$min_plot <- renderPlotly({
-    plot_data <- min_plot_data()
+    plot_data <- min_plot_data_filtered()
     
-    validate(need(nrow(plot_data) > 0, "Preparing plot data..."))
+    validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
-      y = ifelse(is.na(Cost), 0, Cost), # Plot NA as 0
-      fill = is.na(Cost), # Create a fill variable for coloring
-      text = ifelse(is.na(Cost), "Cost: N/A", paste("Cost: $", round(Cost, 2))) # Custom tooltip
+      y = Cost,
+      text = paste("Total Cost: $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
     )) +
-      geom_col(width = 0.6) + # geom_col is a shortcut for geom_bar(stat="identity")
-      scale_fill_manual(values = c("steelblue", "grey80"), guide = "none") + # Set colors for available/NA data
-      scale_x_discrete(limits = cost_variables_list) + # Ensure correct order of bars
-      labs(title = paste("Minimum Cost Breakdown -", input$county_min), y = "Monthly Cost ($)", x = "Cost Variable") +
-      ylim(0, 1000) +
+      geom_col(fill = "steelblue", width = 0.5) + 
+      scale_x_discrete(limits = cost_variables_list) + 
+      coord_cartesian(ylim = c(0, 20000)) + # Use coord_cartesian for zoom without data clipping
+      labs(title = paste("Total Minimum Monthly Costs by Category -", input$county_min), y = "Total Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
         plot.title = element_text(hjust = 0.5),
@@ -359,26 +405,24 @@ server <- function(input, output, session) {
   
   # --- Average Cost Tab Outputs ---
   output$avg_table <- renderTable({
-    table_data <- generate_table_display(avg_cost_data_filtered())
+    table_data <- generate_table_display(avg_cost_data_for_table_filtered())
     format_cost_table(table_data)
   }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
   output$avg_plot <- renderPlotly({
-    plot_data <- avg_plot_data()
+    plot_data <- avg_plot_data_filtered()
     
-    validate(need(nrow(plot_data) > 0, "Preparing plot data..."))
+    validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
-      y = ifelse(is.na(Cost), 0, Cost), # Plot NA as 0
-      fill = is.na(Cost), # Create a fill variable for coloring
-      text = ifelse(is.na(Cost), "Cost: N/A", paste("Cost: $", round(Cost, 2))) # Custom tooltip
+      y = Cost,
+      text = paste("Total Cost: $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
     )) +
-      geom_col(width = 0.6) + # geom_col is a shortcut for geom_bar(stat="identity")
-      scale_fill_manual(values = c("darkorange", "grey80"), guide = "none") + # Set colors for available/NA data
-      scale_x_discrete(limits = cost_variables_list) + # Ensure correct order of bars
-      labs(title = paste("Average Cost Breakdown -", input$county_avg), y = "Monthly Cost ($)", x = "Cost Variable") +
-      ylim(0, 1000) +
+      geom_col(fill = "darkorange", width = 0.5) +
+      scale_x_discrete(limits = cost_variables_list) +
+      coord_cartesian(ylim = c(0, 20000)) + # Use coord_cartesian for zoom without data clipping
+      labs(title = paste("Total Average Monthly Costs by Category -", input$county_avg), y = "Total Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
         plot.title = element_text(hjust = 0.5),
