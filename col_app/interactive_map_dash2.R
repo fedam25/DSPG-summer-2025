@@ -11,7 +11,6 @@ library(readxl)
 options(tigris_use_cache = TRUE)
 
 # --- Core App Setup and Data Loading ---
-# Load Virginia county boundaries data once
 va_counties <- counties(state = "VA", cb = TRUE, class = "sf")
 virginia_county_names <- sort(unique(va_counties$NAME))
 
@@ -45,7 +44,7 @@ avg_elder_care_raw <- read_csv("average_elder_care_cost.csv")
 min_transportation_raw <- read_csv("minimum_transportation_data.csv")
 avg_transportation_raw <- read_csv("average_transportation_data.csv")
 
-# *** NEW: Load Technology data ***
+# Load Technology data
 min_technology_raw <- read_csv("minimum_technology_costs.csv")
 avg_technology_raw <- read_csv("average_technology_costs.csv")
 
@@ -63,13 +62,12 @@ standardize_cols <- function(df) {
     mutate(County = as.character(trimws(County)))
 }
 
-# FIX: Rewritten function to handle missing 'Total Monthly Cost' column
+# Function to handle missing 'Total Monthly Cost' column
 process_data <- function(df) {
-  # Standardize family structure column names
   df_std <- df %>%
     standardize_cols()
   
-  # Ensure the column "2 Adults + 2 Children" is numeric before we potentially use it
+  # Make sure the column "2 Adults + 2 Children" is numeric before we use it
   if ("2 Adults + 2 Children" %in% names(df_std)) {
     df_std <- df_std %>% mutate(`2 Adults + 2 Children` = as.numeric(`2 Adults + 2 Children`))
   }
@@ -77,12 +75,11 @@ process_data <- function(df) {
   # Check if 'Total Monthly Cost' column exists.
   if (!"Total Monthly Cost" %in% names(df_std)) {
     # If not, create it. We'll assume it should be the value for a representative family.
-    # If this assumption is wrong, the source CSV should be fixed.
     if ("2 Adults + 2 Children" %in% names(df_std)) {
       df_processed <- df_std %>%
         mutate(`Total Monthly Cost` = `2 Adults + 2 Children`)
     } else {
-      # Fallback if the representative family column is also missing
+     
       df_processed <- df_std %>%
         mutate(`Total Monthly Cost` = 0)
     }
@@ -90,7 +87,7 @@ process_data <- function(df) {
     df_processed <- df_std
   }
   
-  # Now, ensure all cost-related columns that are present are numeric
+  # Make sure all cost-related columns that are present are numeric
   all_cols_to_check <- c(family_structures_list, "Total Monthly Cost")
   present_cols <- intersect(all_cols_to_check, names(df_processed))
   
@@ -107,7 +104,6 @@ min_elder_care_data <- process_data(min_elder_care_raw)
 avg_elder_care_data <- process_data(avg_elder_care_raw)
 min_transportation_data <- process_data(min_transportation_raw)
 avg_transportation_data <- process_data(avg_transportation_raw)
-# *** NEW: Process Technology data ***
 min_technology_data <- process_data(min_technology_raw)
 avg_technology_data <- process_data(avg_technology_raw)
 
@@ -115,7 +111,7 @@ avg_technology_data <- process_data(avg_technology_raw)
 # --- Create Unified Data Sources ---
 
 # 1. Tidy data source for the detailed TABLE
-all_costs_long_for_table <- bind_rows(
+all_costs_long_for_table_raw <- bind_rows(
   min_utilities_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Utilities", Type = "min"),
@@ -134,7 +130,6 @@ all_costs_long_for_table <- bind_rows(
   avg_transportation_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Transportation", Type = "avg"),
-  # *** NEW: Add Technology data for the table ***
   min_technology_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Technology", Type = "min"),
@@ -143,68 +138,64 @@ all_costs_long_for_table <- bind_rows(
     mutate(CostVariable = "Technology", Type = "avg")
 )
 
+all_costs_long_for_table <- all_costs_long_for_table_raw %>%
+  group_by(County, FamilyStructure, CostVariable, Type) %>%
+  summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop')
+
+
 # 2. Tidy data source for the total cost BAR GRAPH
-all_costs_for_plot <- bind_rows(
+all_costs_for_plot_raw <- bind_rows(
   min_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "min"),
   avg_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "avg"),
   min_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "min"),
   avg_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "avg"),
   min_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "min"),
   avg_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "avg"),
-  
   min_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "min"),
   avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg")
 )
 
+all_costs_for_plot <- all_costs_for_plot_raw %>%
+  group_by(County, CostVariable, Type) %>%
+  summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop')
+
 
 # 3. Prepare Data for the MAP (Summing Total Costs from all files)
-total_min_costs <- min_utilities_data %>%
-  select(County, Cost_Utilities = `Total Monthly Cost`) %>%
-  full_join(
-    min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
-    by = "County"
-  ) %>%
-  full_join(
-    min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
-    by = "County"
-  ) %>%
-  
-  full_join(
-    min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
-    by = "County"
-  ) %>%
-  rowwise() %>%
-  mutate(Cost = sum(c_across(starts_with("Cost_")), na.rm = TRUE)) %>%
-  select(NAME = County, Cost)
+min_cost_dfs <- list(
+  min_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
+  min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
+  min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
+  min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`)
+)
 
-total_avg_costs <- avg_utilities_data %>%
-  select(County, Cost_Utilities = `Total Monthly Cost`) %>%
-  full_join(
-    avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
-    by = "County"
-  ) %>%
-  full_join(
-    avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
-    by = "County"
-  ) %>%
+avg_cost_dfs <- list(
+  avg_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
+  avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
+  avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
+  avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`)
+)
 
-  full_join(
-    avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
-    by = "County"
-  ) %>%
-  rowwise() %>%
-  mutate(Cost = sum(c_across(starts_with("Cost_")), na.rm = TRUE)) %>%
-  select(NAME = County, Cost)
+total_min_costs <- min_cost_dfs %>%
+  reduce(full_join, by = "County") %>%
+  pivot_longer(-County, names_to = "Cost_Category", values_to = "Cost_Value") %>%
+  group_by(NAME = County) %>%
+  summarise(Cost = sum(Cost_Value, na.rm = TRUE), .groups = 'drop')
+
+total_avg_costs <- avg_cost_dfs %>%
+  reduce(full_join, by = "County") %>%
+  pivot_longer(-County, names_to = "Cost_Category", values_to = "Cost_Value") %>%
+  group_by(NAME = County) %>%
+  summarise(Cost = sum(Cost_Value, na.rm = TRUE), .groups = 'drop')
 
 va_map_data_min <- left_join(va_counties, total_min_costs, by = "NAME")
 va_map_data_avg <- left_join(va_counties, total_avg_costs, by = "NAME")
 
 
-# --- UI Definition (Content Restored and Unchanged) ---
+# --- UI Definition ---
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
-      /* All CSS styles are preserved from your original code */
+      /* Basic page styling */
       .custom-header { background-color: #001f3f; padding: 30px 20px; margin-bottom: 20px; text-align: center; border-radius: 10px; }
       .custom-header h1 { color: white; font-size: 38px; font-weight: bold; margin: 0; }
       .intro-text, .project-intro, .about-section, .future-text-section { font-size: 17px; margin-bottom: 20px; padding: 15px; background-color: #f8f8f8; border-radius: 10px; border: 1px solid #e0e0e0; }
@@ -218,21 +209,31 @@ ui <- fluidPage(
       .nav-tabs > li.active > a, .nav-tabs > li.active > a:focus, .nav-tabs > li.active > a:hover { color: white; background-color: #007bff; border-color: #007bff; }
       .content-container { max-width: 95%; margin: 0 auto; padding: 0 15px; }
       .shiny-plot-output, .leaflet-container, .plotly { border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100% !important; }
+
+      /* Table Container Styling */
       .table-container { margin: 20px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: white; }
       table.data { width: 100%; border-collapse: collapse; margin: 0; font-size: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-      table.data th { background: linear-gradient(135deg, #001f3f 0%, #004080 100%); color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-      table.data th:first-child { background: linear-gradient(135deg, #2c5282 0%, #3182ce 100%); border-top-left-radius: 10px; }
-      table.data th:last-child { border-top-right-radius: 10px; }
       table.data td { padding: 12px; border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s ease; }
-      table.data td:first-child { background: linear-gradient(135deg, #e6f3ff 0%, #cce7ff 100%); font-weight: bold; color: #1a365d; border-right: 2px solid #3182ce; position: relative; }
-      table.data td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, #3182ce, #2c5282); }
-      table.data tbody tr:hover { background-color: #f7fafc; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-      table.data tbody tr:hover td:first-child { background: linear-gradient(135deg, #d6f0ff 0%, #b3d9ff 100%); }
-      table.data tbody tr:last-child td { border-bottom: none; }
       table.data tbody tr:nth-child(even) { background-color: #f8fafc; }
-      table.data tbody tr:last-child { background: linear-gradient(135deg, #e6fffa 0%, #b3f5e6 100%); font-weight: bold; border-top: 2px solid #38a169; }
+      table.data tbody tr:hover { background-color: #f1f5f9; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+      
+      /* Table Header (First Row) Styling */
+      table.data th { background-color: #2b6cb0; color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; }
+      table.data th:first-child { border-top-left-radius: 10px; }
+      table.data th:last-child { border-top-right-radius: 10px; }
+      
+      /* Table First Column Styling */
+      table.data td:first-child { background-color: #EBF8FF; font-weight: bold; color: #1a365d; border-right: 2px solid #3182ce; position: relative; }
+      table.data td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, #3182ce, #2c5282); }
+      table.data tbody tr:hover td:first-child { background-color: #BEE3F8; }
+      
+      /* Special styling for the 'Total Cost' row */
+      table.data tbody tr:last-child td { border-bottom: none; }
+      table.data tbody tr:last-child { background-color: #f0fff4; font-weight: bold; border-top: 2px solid #38a169; }
       table.data tbody tr:last-child td { color: #22543d; font-size: 16px; font-weight: bold; }
-      table.data tbody tr:last-child td:first-child { background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+      table.data tbody tr:last-child td:first-child { background-color: #2f855a; color: white; }
+      
+      /* Map Popup Styling */
       .leaflet-popup-content-wrapper { border-radius: 8px; padding: 10px; }
       .leaflet-popup-content { margin: 8px 12px; line-height: 1.5; }
       .map-popup-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; color: #001f3f; }
@@ -269,72 +270,77 @@ ui <- fluidPage(
                        p("The data presented here is a sample and will be replaced with real datasets in future iterations."),
                        div(class = "section-title", "Our Variables"),
                        tags$ol(
-                         tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing..."))),
-                         tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries..."))),
-                         tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting..."))),
-                         tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes..."))),
-                         tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance..."))),
-                         tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses..."))),
-                         tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access..."))),
-                         tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care..."))),
-                         tags$li(div(class = "about-variable-item", h4("Utilities"), p("Utilities cover basic household services such as electricity..."))),
-                         tags$li(div(class = "about-variable-item", h4("Miscellaneous"), p("The miscellaneous category covers a range of other essential expenses..."))),
-                         tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income...")))
+                         tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling."))),
+                         tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries and meals. This is calculated using average food prices for common items, considering the nutritional needs and dietary patterns for different age groups and family structures. It accounts for both at-home consumption and a small allowance for eating out."))),
+                         tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting, personal vehicle maintenance (gas, insurance, repairs), and public transit fares where applicable. We factor in the average commute distances in each county and availability of public transportation options."))),
+                         tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes, sales taxes on goods and services, and property taxes (for homeowners or indirectly through rent). Federal taxes are also considered to provide a holistic view of the tax burden."))),
+                         tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average healthcare utilization rates."))),
+                         tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
+                         tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
+                         tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
+                         tags$li(div(class = "about-variable-item", h4("Utilities"), p("Utilities cover basic household services such as electricity, water, natural gas, heating oil, and waste removal. These are estimated based on average consumption rates for typical households."))),
+                         tags$li(div(class = "about-variable-item", h4("Miscellaneous"), p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies. It represents a buffer for unforeseen costs."))),
+                         tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
                        ),
+                       
+                       div(class = "section-title", "Minimum vs Average Cost"),
+                       p("In this dashboard, you’ll see both 'Minimum Cost' and 'Average Cost' estimates for each location in Virginia. But what do they really mean?"),
+                       p("The Minimum Cost is based on a survival budget, it reflects the lowest possible expenses needed to cover basic needs like housing, food, healthcare, and transportation. This is often used to understand what it takes to just get by, without any extras."),
+                       p("The Average Cost, on the other hand, reflects a more typical lifestyle. It includes the average amount people actually spend on the same categories, which can vary depending on where they live and how much they earn."),
+                       p("We separated these two to help users compare different standards of living. You can switch between the 'Minimum Cost' and 'Average Cost' tabs to see how costs change, and what a basic vs. average lifestyle might look like in different parts of Virginia."),
+                       
                        div(class = "section-title", "How to Use This Dashboard"),
                        tags$ol(
-                         tags$li("To begin, the 'About' page provides a comprehensive introduction..."),
-                         tags$li("Click on either the 'Minimum Cost' or 'Average Cost' tab..."),
-                         tags$li("On either the 'Minimum Cost' or 'Average Cost' page, you will see a dropdown menu..."),
-                         tags$li("When you select a county or city, the 'Cost Table', 'Interactive County Map', and 'Cost Breakdown Bar Chart' below will automatically update..."),
-                         tags$li("The 'Cost Table' provides a detailed numerical breakdown of expenses..."),
-                         tags$li("The 'Cost Breakdown Bar Chart' visualizes how different expense categories contribute..."),
-                         tags$li("You can switch between the 'Minimum Cost' and 'Average Cost' tabs to compare..."),
-                         tags$li("More instructions here...")
+                         tags$li("Start on the 'About' page for an introduction to our project, why it's important, our methods, and what each variable means."),
+                         tags$li("Click the 'Minimum Cost' or 'Average Cost' tab to see the data."),
+                         tags$li("Use the 'Select County or City' dropdown menu to choose a location in Virginia."),
+                         tags$li("As you select a location, the Cost Table, Map, and Bar Chart will all update automatically."),
+                         tags$li("The Cost Table shows a detailed breakdown of expenses for different family types. The Map shows the name of the county you hover over."),
+                         tags$li("The Bar Chart visualizes each expense category's share of the total cost. Hover over any bar to see the exact cost."),
+                         tags$li("Switch between the 'Minimum Cost' and 'Average Cost' tabs to compare different living standards and explore costs across Virginia.")
                        ),
                        div(class = "section-title", "Sources"),
                        tags$ul(
                          tags$li("U.S. Census Bureau (population demographics, income data)"),
                          tags$li("Bureau of Labor Statistics (consumer price index, employment costs)"),
                          tags$li("Local government data (property tax rates, utility costs)"),
-                         tags$li("Other relevant research and surveys."),
-                         tags$li("More data sources here...")
+                         tags$li("Other relevant research and surveys.")
                        ),
                        div(class = "section-title", "Acknowledgement"),
                        tags$ul(
-                         tags$li("This dashboard was developed by Feda Mohammadi and Julia Vecharello as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in Summer 2025. We extend our sincere gratitude to the DSPG program for providing this valuable opportunity to contribute to public understanding through data science.")
+                         tags$li("This dashboard was developed by Feda Mohammadi and Julia Vecharello as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in Summer 2025. We extend our sincere gratitude to the DSPG program for providing this valuable opportunity to contribute to public understanding through data science:)")
                        )
                    )
                )
       ),
       tabPanel("Minimum Cost",
                div(class = "content-container",
-                   div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget...")),
+                   div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")),
                    selectInput("county_min", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Minimum Cost Table"),
                    div(class = "section-desc", "Monthly minimum cost by category..."),
                    div(class = "table-container", tableOutput("min_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total minimum monthly cost..."),
+                   div(class = "section-desc", "This map displays the total minimum monthly cost."),
                    leafletOutput("min_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the minimum cost components..."),
+                   div(class = "section-desc", "A visualization of the minimum cost components."),
                    plotlyOutput("min_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
       ),
       tabPanel("Average Cost",
                div(class = "content-container",
-                   div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses...")),
+                   div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")),
                    selectInput("county_avg", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Average Cost Table"),
-                   div(class = "section-desc", "Monthly average cost by category..."),
+                   div(class = "section-desc", "Monthly average cost by category."),
                    div(class = "table-container", tableOutput("avg_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total average monthly cost..."),
+                   div(class = "section-desc", "This map displays the total average monthly cost."),
                    leafletOutput("avg_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the average cost components..."),
+                   div(class = "section-desc", "A visualization of the average cost components."),
                    plotlyOutput("avg_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
@@ -404,7 +410,6 @@ server <- function(input, output, session) {
     
     df_with_total <- bind_rows(df, total_row)
     
-    # FIX: Modified case_when to show "$0.00" for zero values correctly
     df_with_total %>%
       mutate(across(where(is.numeric), ~case_when(
         is.na(.) ~ "N/A",
@@ -417,7 +422,7 @@ server <- function(input, output, session) {
   output$min_table <- renderTable({
     table_data <- generate_table_display(min_cost_data_for_table_filtered())
     format_cost_table(table_data)
-  }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
+  }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
   output$min_plot <- renderPlotly({
     plot_data <- min_plot_data_filtered()
@@ -427,12 +432,12 @@ server <- function(input, output, session) {
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
       y = Cost,
-      text = paste("Total Cost: $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
+      text = paste0(CostVariable, ": $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
     )) +
-      geom_col(fill = "steelblue", width = 0.5) + 
+      geom_col(fill = "steelblue", width = 0.8) + 
       scale_x_discrete(limits = cost_variables_list) + 
-      coord_cartesian(ylim = c(0, 15000)) + # Use coord_cartesian for zoom without data clipping
-      labs(title = paste("Total Minimum Monthly Costs by Category -", input$county_min), y = "Total Monthly Cost ($)", x = "Cost Category") +
+      coord_cartesian(ylim = c(0, 8000)) +
+      labs(title = paste("Minimum Monthly Cost Breakdown -", input$county_min), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
         plot.title = element_text(hjust = 0.5),
@@ -443,12 +448,17 @@ server <- function(input, output, session) {
   })
   
   output$min_map <- renderLeaflet({
-    pal <- colorNumeric(palette = c("green", "yellow", "red"), domain = va_map_data_min$Cost, na.color = "#bdbdbd")
+    pal <- colorQuantile(palette = c("green", "yellow", "red"), domain = va_map_data_min$Cost, n = 5, na.color = "#bdbdbd")
     leaflet(va_map_data_min) %>%
       addTiles() %>%
       addPolygons(
         fillColor = ~pal(Cost), weight = 1, color = "white", fillOpacity = 0.7,
         popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Cost:</strong><br>$", format(round(Cost, 0), big.mark=",")),
+        label = ~NAME,
+        labelOptions = labelOptions(
+          style = list("font-weight" = "normal", padding = "3px 8px"),
+          textsize = "15px",
+          direction = "auto"),
         highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
       ) %>%
       addLegend(pal = pal, values = ~Cost, title = "Total Monthly Cost", na.label = "No Data")
@@ -458,7 +468,7 @@ server <- function(input, output, session) {
   output$avg_table <- renderTable({
     table_data <- generate_table_display(avg_cost_data_for_table_filtered())
     format_cost_table(table_data)
-  }, striped = TRUE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
+  }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
   output$avg_plot <- renderPlotly({
     plot_data <- avg_plot_data_filtered()
@@ -468,12 +478,12 @@ server <- function(input, output, session) {
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
       y = Cost,
-      text = paste("Total Cost: $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
+      text = paste0(CostVariable, ": $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
     )) +
-      geom_col(fill = "darkorange", width = 0.5) +
+      geom_col(fill = "darkorange", width = 0.8) +
       scale_x_discrete(limits = cost_variables_list) +
-      coord_cartesian(ylim = c(0, 15000)) + # Use coord_cartesian for zoom without data clipping
-      labs(title = paste("Total Average Monthly Costs by Category -", input$county_avg), y = "Total Monthly Cost ($)", x = "Cost Category") +
+      coord_cartesian(ylim = c(0, 15000))+
+      labs(title = paste("Average Monthly Cost Breakdown -", input$county_avg), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
         plot.title = element_text(hjust = 0.5),
@@ -484,16 +494,22 @@ server <- function(input, output, session) {
   })
   
   output$avg_map <- renderLeaflet({
-    pal <- colorNumeric(palette = c("lightgreen", "gold", "darkred"), domain = va_map_data_avg$Cost, na.color = "#bdbdbd")
+    pal <- colorQuantile(palette = c("lightgreen", "gold", "darkred"), domain = va_map_data_avg$Cost, n=5, na.color = "#bdbdbd")
     leaflet(va_map_data_avg) %>%
       addTiles() %>%
       addPolygons(
         fillColor = ~pal(Cost), weight = 1, color = "white", fillOpacity = 0.7,
         popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Cost:</strong><br>$", format(round(Cost, 0), big.mark=",")),
+        label = ~NAME,
+        labelOptions = labelOptions(
+          style = list("font-weight" = "normal", padding = "3px 8px"),
+          textsize = "15px",
+          direction = "auto"),
         highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
       ) %>%
       addLegend(pal = pal, values = ~Cost, title = "Total Monthly Cost", na.label = "No Data")
   })
+  
 }
 
 shinyApp(ui = ui, server = server)
