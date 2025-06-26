@@ -41,6 +41,15 @@ avg_utilities_raw <- read_csv("average_final_utilities_cleaned.csv")
 min_elder_care_raw <- read_csv("minimum_elder_care_cost.csv")
 avg_elder_care_raw <- read_csv("average_elder_care_cost.csv")
 
+# Load Transportation data
+min_transportation_raw <- read_csv("minimum_transportation_data.csv")
+avg_transportation_raw <- read_csv("average_transportation_data.csv")
+
+# *** NEW: Load Technology data ***
+min_technology_raw <- read_csv("minimum_technology_costs.csv")
+avg_technology_raw <- read_csv("average_technology_costs.csv")
+
+
 # Function to standardize column names, ensuring they match the app's internal lists.
 standardize_cols <- function(df) {
   df %>%
@@ -54,12 +63,41 @@ standardize_cols <- function(df) {
     mutate(County = as.character(trimws(County)))
 }
 
-# Function to apply standardization and convert cost columns to numeric
+# FIX: Rewritten function to handle missing 'Total Monthly Cost' column
 process_data <- function(df) {
-  df %>%
-    standardize_cols() %>%
-    # Ensure all cost columns are numeric for calculations
-    mutate(across(all_of(c(family_structures_list, "Total Monthly Cost")), as.numeric))
+  # Standardize family structure column names
+  df_std <- df %>%
+    standardize_cols()
+  
+  # Ensure the column "2 Adults + 2 Children" is numeric before we potentially use it
+  if ("2 Adults + 2 Children" %in% names(df_std)) {
+    df_std <- df_std %>% mutate(`2 Adults + 2 Children` = as.numeric(`2 Adults + 2 Children`))
+  }
+  
+  # Check if 'Total Monthly Cost' column exists.
+  if (!"Total Monthly Cost" %in% names(df_std)) {
+    # If not, create it. We'll assume it should be the value for a representative family.
+    # If this assumption is wrong, the source CSV should be fixed.
+    if ("2 Adults + 2 Children" %in% names(df_std)) {
+      df_processed <- df_std %>%
+        mutate(`Total Monthly Cost` = `2 Adults + 2 Children`)
+    } else {
+      # Fallback if the representative family column is also missing
+      df_processed <- df_std %>%
+        mutate(`Total Monthly Cost` = 0)
+    }
+  } else {
+    df_processed <- df_std
+  }
+  
+  # Now, ensure all cost-related columns that are present are numeric
+  all_cols_to_check <- c(family_structures_list, "Total Monthly Cost")
+  present_cols <- intersect(all_cols_to_check, names(df_processed))
+  
+  df_final <- df_processed %>%
+    mutate(across(all_of(present_cols), as.numeric))
+  
+  return(df_final)
 }
 
 # Process all data files
@@ -67,6 +105,11 @@ min_utilities_data <- process_data(min_utilities_raw)
 avg_utilities_data <- process_data(avg_utilities_raw)
 min_elder_care_data <- process_data(min_elder_care_raw)
 avg_elder_care_data <- process_data(avg_elder_care_raw)
+min_transportation_data <- process_data(min_transportation_raw)
+avg_transportation_data <- process_data(avg_transportation_raw)
+# *** NEW: Process Technology data ***
+min_technology_data <- process_data(min_technology_raw)
+avg_technology_data <- process_data(avg_technology_raw)
 
 
 # --- Create Unified Data Sources ---
@@ -84,7 +127,20 @@ all_costs_long_for_table <- bind_rows(
     mutate(CostVariable = "Elder Care", Type = "min"),
   avg_elder_care_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
-    mutate(CostVariable = "Elder Care", Type = "avg")
+    mutate(CostVariable = "Elder Care", Type = "avg"),
+  min_transportation_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Transportation", Type = "min"),
+  avg_transportation_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Transportation", Type = "avg"),
+  # *** NEW: Add Technology data for the table ***
+  min_technology_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Technology", Type = "min"),
+  avg_technology_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Technology", Type = "avg")
 )
 
 # 2. Tidy data source for the total cost BAR GRAPH
@@ -92,7 +148,12 @@ all_costs_for_plot <- bind_rows(
   min_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "min"),
   avg_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "avg"),
   min_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "min"),
-  avg_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "avg")
+  avg_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "avg"),
+  min_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "min"),
+  avg_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "avg"),
+  
+  min_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "min"),
+  avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg")
 )
 
 
@@ -103,6 +164,15 @@ total_min_costs <- min_utilities_data %>%
     min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
     by = "County"
   ) %>%
+  full_join(
+    min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+  
+  full_join(
+    min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
   rowwise() %>%
   mutate(Cost = sum(c_across(starts_with("Cost_")), na.rm = TRUE)) %>%
   select(NAME = County, Cost)
@@ -111,6 +181,15 @@ total_avg_costs <- avg_utilities_data %>%
   select(County, Cost_Utilities = `Total Monthly Cost`) %>%
   full_join(
     avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+  full_join(
+    avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
+    by = "County"
+  ) %>%
+
+  full_join(
+    avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
     by = "County"
   ) %>%
   rowwise() %>%
@@ -289,7 +368,6 @@ server <- function(input, output, session) {
   })
   
   # --- Reusable Functions for Rendering ---
-  # FIX: Rewritten function to prevent duplicate rows in the table
   generate_table_display <- function(filtered_data) {
     base_table <- tibble(`Cost Variable` = cost_variables_list)
     
@@ -331,7 +409,7 @@ server <- function(input, output, session) {
       mutate(across(where(is.numeric), ~case_when(
         is.na(.) ~ "N/A",
         . == 0 ~ "$0.00",
-        TRUE ~ paste0("$", format(round(., 2), nsmall = 2, big.mark = ","))
+        TRUE ~ paste0("$", trimws(format(round(., 2), nsmall = 2, big.mark = ",")))
       )))
   }
   
@@ -353,7 +431,7 @@ server <- function(input, output, session) {
     )) +
       geom_col(fill = "steelblue", width = 0.5) + 
       scale_x_discrete(limits = cost_variables_list) + 
-      coord_cartesian(ylim = c(0, 20000)) + # Use coord_cartesian for zoom without data clipping
+      coord_cartesian(ylim = c(0, 15000)) + # Use coord_cartesian for zoom without data clipping
       labs(title = paste("Total Minimum Monthly Costs by Category -", input$county_min), y = "Total Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
@@ -394,7 +472,7 @@ server <- function(input, output, session) {
     )) +
       geom_col(fill = "darkorange", width = 0.5) +
       scale_x_discrete(limits = cost_variables_list) +
-      coord_cartesian(ylim = c(0, 20000)) + # Use coord_cartesian for zoom without data clipping
+      coord_cartesian(ylim = c(0, 15000)) + # Use coord_cartesian for zoom without data clipping
       labs(title = paste("Total Average Monthly Costs by Category -", input$county_avg), y = "Total Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
