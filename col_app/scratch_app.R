@@ -11,7 +11,6 @@ library(readxl)
 options(tigris_use_cache = TRUE)
 
 # --- Core App Setup and Data Loading ---
-# Load Virginia county boundaries data once
 va_counties <- counties(state = "VA", cb = TRUE, class = "sf")
 virginia_county_names <- sort(unique(va_counties$NAME))
 
@@ -31,7 +30,7 @@ cost_variables_list <- c(
   "Miscellaneous"
 )
 
-# --- Load and Process REAL Data from Cleaned CSVs ---
+# --- Load and Process REAL Data from Cleaned CSV files ---
 
 # Load Utilities data
 min_utilities_raw <- read_csv("minimum_final_utilities_cleaned.csv")
@@ -49,6 +48,10 @@ avg_transportation_raw <- read_csv("average_transportation_data.csv")
 min_technology_raw <- read_csv("minimum_technology_costs.csv")
 avg_technology_raw <- read_csv("average_technology_costs.csv")
 
+# *** NEW: Load Food data ***
+min_food_raw <- read_csv("final_minimum_food_data.csv")
+avg_food_raw <- read_csv("final_average_food_data.csv")
+
 
 # Function to standardize column names, ensuring they match the app's internal lists.
 standardize_cols <- function(df) {
@@ -65,11 +68,10 @@ standardize_cols <- function(df) {
 
 # Function to handle missing 'Total Monthly Cost' column
 process_data <- function(df) {
-  # Standardize family structure column names
   df_std <- df %>%
     standardize_cols()
   
-  # Ensure the column "2 Adults + 2 Children" is numeric before we potentially use it
+  # Make sure the column "2 Adults + 2 Children" is numeric before we use it
   if ("2 Adults + 2 Children" %in% names(df_std)) {
     df_std <- df_std %>% mutate(`2 Adults + 2 Children` = as.numeric(`2 Adults + 2 Children`))
   }
@@ -81,7 +83,7 @@ process_data <- function(df) {
       df_processed <- df_std %>%
         mutate(`Total Monthly Cost` = `2 Adults + 2 Children`)
     } else {
-      # Fallback if the representative family column is also missing
+      
       df_processed <- df_std %>%
         mutate(`Total Monthly Cost` = 0)
     }
@@ -89,7 +91,7 @@ process_data <- function(df) {
     df_processed <- df_std
   }
   
-  # Now, ensure all cost-related columns that are present are numeric
+  # Make sure all cost-related columns that are present are numeric
   all_cols_to_check <- c(family_structures_list, "Total Monthly Cost")
   present_cols <- intersect(all_cols_to_check, names(df_processed))
   
@@ -108,6 +110,9 @@ min_transportation_data <- process_data(min_transportation_raw)
 avg_transportation_data <- process_data(avg_transportation_raw)
 min_technology_data <- process_data(min_technology_raw)
 avg_technology_data <- process_data(avg_technology_raw)
+# *** NEW: Process Food data ***
+min_food_data <- process_data(min_food_raw)
+avg_food_data <- process_data(avg_food_raw)
 
 
 # --- Create Unified Data Sources ---
@@ -137,7 +142,14 @@ all_costs_long_for_table_raw <- bind_rows(
     mutate(CostVariable = "Technology", Type = "min"),
   avg_technology_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
-    mutate(CostVariable = "Technology", Type = "avg")
+    mutate(CostVariable = "Technology", Type = "avg"),
+  # *** NEW: Add Food data to the table source ***
+  min_food_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Food", Type = "min"),
+  avg_food_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Food", Type = "avg")
 )
 
 all_costs_long_for_table <- all_costs_long_for_table_raw %>%
@@ -154,7 +166,10 @@ all_costs_for_plot_raw <- bind_rows(
   min_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "min"),
   avg_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "avg"),
   min_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "min"),
-  avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg")
+  avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg"),
+  # *** NEW: Add Food data to the bar graph source ***
+  min_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "min"),
+  avg_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "avg")
 )
 
 all_costs_for_plot <- all_costs_for_plot_raw %>%
@@ -167,14 +182,18 @@ min_cost_dfs <- list(
   min_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
   min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
   min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
-  min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`)
+  min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
+  # *** NEW: Add Food data to the minimum map cost list ***
+  min_food_data %>% select(County, Cost_Food = `Total Monthly Cost`)
 )
 
 avg_cost_dfs <- list(
   avg_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
   avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
   avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
-  avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`)
+  avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
+  # *** NEW: Add Food data to the average map cost list ***
+  avg_food_data %>% select(County, Cost_Food = `Total Monthly Cost`)
 )
 
 total_min_costs <- min_cost_dfs %>%
@@ -287,7 +306,7 @@ ui <- fluidPage(
                        
                        div(class = "section-title", "Minimum vs Average Cost"),
                        p("In this dashboard, you’ll see both 'Minimum Cost' and 'Average Cost' estimates for each location in Virginia. But what do they really mean?"),
-                       p("The Minimum Cost is based on a survival budget — it reflects the lowest possible expenses needed to cover basic needs like housing, food, healthcare, and transportation. This is often used to understand what it takes to just get by, without any extras."),
+                       p("The Minimum Cost is based on a survival budget, it reflects the lowest possible expenses needed to cover basic needs like housing, food, healthcare, and transportation. This is often used to understand what it takes to just get by, without any extras."),
                        p("The Average Cost, on the other hand, reflects a more typical lifestyle. It includes the average amount people actually spend on the same categories, which can vary depending on where they live and how much they earn."),
                        p("We separated these two to help users compare different standards of living. You can switch between the 'Minimum Cost' and 'Average Cost' tabs to see how costs change, and what a basic vs. average lifestyle might look like in different parts of Virginia."),
                        
@@ -310,39 +329,39 @@ ui <- fluidPage(
                        ),
                        div(class = "section-title", "Acknowledgement"),
                        tags$ul(
-                         tags$li("This dashboard was developed by Feda Mohammadi and Julia Vecharello as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in Summer 2025. We extend our sincere gratitude to the DSPG program for providing this valuable opportunity to contribute to public understanding through data science.")
+                         tags$li("This dashboard was developed by Feda Mohammadi and Julia Vecharello as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in Summer 2025. We extend our sincere gratitude to the DSPG program for providing this valuable opportunity to contribute to public understanding through data science:)")
                        )
                    )
                )
       ),
       tabPanel("Minimum Cost",
                div(class = "content-container",
-                   div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget...")),
+                   div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")),
                    selectInput("county_min", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Minimum Cost Table"),
                    div(class = "section-desc", "Monthly minimum cost by category..."),
                    div(class = "table-container", tableOutput("min_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total minimum monthly cost..."),
+                   div(class = "section-desc", "This map displays the total minimum monthly cost."),
                    leafletOutput("min_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the minimum cost components..."),
+                   div(class = "section-desc", "A visualization of the minimum cost components."),
                    plotlyOutput("min_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
       ),
       tabPanel("Average Cost",
                div(class = "content-container",
-                   div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses...")),
+                   div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")),
                    selectInput("county_avg", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Average Cost Table"),
-                   div(class = "section-desc", "Monthly average cost by category..."),
+                   div(class = "section-desc", "Monthly average cost by category."),
                    div(class = "table-container", tableOutput("avg_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total average monthly cost..."),
+                   div(class = "section-desc", "This map displays the total average monthly cost."),
                    leafletOutput("avg_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the average cost components..."),
+                   div(class = "section-desc", "A visualization of the average cost components."),
                    plotlyOutput("avg_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
@@ -438,7 +457,7 @@ server <- function(input, output, session) {
     )) +
       geom_col(fill = "steelblue", width = 0.8) + 
       scale_x_discrete(limits = cost_variables_list) + 
-      coord_cartesian(ylim = c(0, max(plot_data$Cost, na.rm=TRUE) * 1.1)) +
+      coord_cartesian(ylim = c(0, 8000)) +
       labs(title = paste("Minimum Monthly Cost Breakdown -", input$county_min), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
@@ -484,7 +503,7 @@ server <- function(input, output, session) {
     )) +
       geom_col(fill = "darkorange", width = 0.8) +
       scale_x_discrete(limits = cost_variables_list) +
-      coord_cartesian(ylim = c(0, max(plot_data$Cost, na.rm=TRUE) * 1.1)) +
+      coord_cartesian(ylim = c(0, 15000))+
       labs(title = paste("Average Monthly Cost Breakdown -", input$county_avg), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() +
       theme(
