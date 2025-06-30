@@ -32,25 +32,29 @@ cost_variables_list <- c(
 
 # --- Load and Process REAL Data from Cleaned CSV files ---
 
-# Load Utilities data
+# Utilities data
 min_utilities_raw <- read_csv("minimum_final_utilities_cleaned.csv")
 avg_utilities_raw <- read_csv("average_final_utilities_cleaned.csv")
 
-# Load Elder Care data
+# Elder Care data
 min_elder_care_raw <- read_csv("minimum_elder_care_cost.csv")
 avg_elder_care_raw <- read_csv("average_elder_care_cost.csv")
 
-# Load Transportation data
+# Transportation data
 min_transportation_raw <- read_csv("minimum_transportation_data.csv")
 avg_transportation_raw <- read_csv("average_transportation_data.csv")
 
-# Load Technology data
+# Technology data
 min_technology_raw <- read_csv("minimum_technology_costs.csv")
 avg_technology_raw <- read_csv("average_technology_costs.csv")
 
-# *** NEW: Load Food data ***
+# Food data
 min_food_raw <- read_csv("final_minimum_food_data.csv")
 avg_food_raw <- read_csv("final_average_food_data.csv")
+
+# *** NEW: Load Tax data ***
+min_tax_raw <- read_csv("minimum_tax_cost.csv")
+avg_tax_raw <- read_csv("average_tax_cost.csv")
 
 
 # Function to standardize column names, ensuring they match the app's internal lists.
@@ -110,9 +114,11 @@ min_transportation_data <- process_data(min_transportation_raw)
 avg_transportation_data <- process_data(avg_transportation_raw)
 min_technology_data <- process_data(min_technology_raw)
 avg_technology_data <- process_data(avg_technology_raw)
-# *** NEW: Process Food data ***
 min_food_data <- process_data(min_food_raw)
 avg_food_data <- process_data(avg_food_raw)
+# *** NEW: Process Tax data ***
+min_tax_data <- process_data(min_tax_raw)
+avg_tax_data <- process_data(avg_tax_raw)
 
 
 # --- Create Unified Data Sources ---
@@ -143,13 +149,19 @@ all_costs_long_for_table_raw <- bind_rows(
   avg_technology_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Technology", Type = "avg"),
-  # *** NEW: Add Food data to the table source ***
   min_food_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Food", Type = "min"),
   avg_food_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
-    mutate(CostVariable = "Food", Type = "avg")
+    mutate(CostVariable = "Food", Type = "avg"),
+  # *** NEW: Add Tax data to the table source ***
+  min_tax_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Taxes", Type = "min"),
+  avg_tax_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Taxes", Type = "avg")
 )
 
 all_costs_long_for_table <- all_costs_long_for_table_raw %>%
@@ -167,9 +179,11 @@ all_costs_for_plot_raw <- bind_rows(
   avg_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "avg"),
   min_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "min"),
   avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg"),
-  # *** NEW: Add Food data to the bar graph source ***
   min_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "min"),
-  avg_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "avg")
+  avg_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "avg"),
+  # *** NEW: Add Tax data to the bar graph source ***
+  min_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "min"),
+  avg_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "avg")
 )
 
 all_costs_for_plot <- all_costs_for_plot_raw %>%
@@ -183,8 +197,9 @@ min_cost_dfs <- list(
   min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
   min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
   min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
-  # *** NEW: Add Food data to the minimum map cost list ***
-  min_food_data %>% select(County, Cost_Food = `Total Monthly Cost`)
+  min_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
+  # *** NEW: Add Tax data to the minimum map cost list ***
+  min_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`)
 )
 
 avg_cost_dfs <- list(
@@ -192,8 +207,9 @@ avg_cost_dfs <- list(
   avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
   avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
   avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
-  # *** NEW: Add Food data to the average map cost list ***
-  avg_food_data %>% select(County, Cost_Food = `Total Monthly Cost`)
+  avg_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
+  # *** NEW: Add Tax data to the average map cost list ***
+  avg_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`)
 )
 
 total_min_costs <- min_cost_dfs %>%
