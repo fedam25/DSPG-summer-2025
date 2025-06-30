@@ -52,9 +52,13 @@ avg_technology_raw <- read_csv("average_technology_costs.csv")
 min_food_raw <- read_csv("final_minimum_food_data.csv")
 avg_food_raw <- read_csv("final_average_food_data.csv")
 
-# *** NEW: Load Tax data ***
+# Tax data
 min_tax_raw <- read_csv("minimum_tax_cost.csv")
 avg_tax_raw <- read_csv("average_tax_cost.csv")
+
+# Childcare data
+min_childcare_raw <- read_csv("childcare_minimum_cost.csv")
+avg_childcare_raw <- read_csv("childcare_average_cost.csv")
 
 
 # Function to standardize column names, ensuring they match the app's internal lists.
@@ -116,9 +120,10 @@ min_technology_data <- process_data(min_technology_raw)
 avg_technology_data <- process_data(avg_technology_raw)
 min_food_data <- process_data(min_food_raw)
 avg_food_data <- process_data(avg_food_raw)
-# *** NEW: Process Tax data ***
 min_tax_data <- process_data(min_tax_raw)
 avg_tax_data <- process_data(avg_tax_raw)
+min_childcare_data <- process_data(min_childcare_raw)
+avg_childcare_data <- process_data(avg_childcare_raw)
 
 
 # --- Create Unified Data Sources ---
@@ -155,13 +160,18 @@ all_costs_long_for_table_raw <- bind_rows(
   avg_food_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Food", Type = "avg"),
-  # *** NEW: Add Tax data to the table source ***
   min_tax_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
     mutate(CostVariable = "Taxes", Type = "min"),
   avg_tax_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
-    mutate(CostVariable = "Taxes", Type = "avg")
+    mutate(CostVariable = "Taxes", Type = "avg"),
+  min_childcare_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Childcare", Type = "min"),
+  avg_childcare_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Childcare", Type = "avg")
 )
 
 all_costs_long_for_table <- all_costs_long_for_table_raw %>%
@@ -181,9 +191,10 @@ all_costs_for_plot_raw <- bind_rows(
   avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg"),
   min_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "min"),
   avg_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "avg"),
-  # *** NEW: Add Tax data to the bar graph source ***
   min_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "min"),
-  avg_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "avg")
+  avg_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "avg"),
+  min_childcare_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Childcare", Type = "min"),
+  avg_childcare_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Childcare", Type = "avg")
 )
 
 all_costs_for_plot <- all_costs_for_plot_raw %>%
@@ -198,8 +209,8 @@ min_cost_dfs <- list(
   min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
   min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
   min_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
-  # *** NEW: Add Tax data to the minimum map cost list ***
-  min_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`)
+  min_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`),
+  min_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`)
 )
 
 avg_cost_dfs <- list(
@@ -208,8 +219,8 @@ avg_cost_dfs <- list(
   avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
   avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
   avg_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
-  # *** NEW: Add Tax data to the average map cost list ***
-  avg_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`)
+  avg_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`),
+  avg_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`)
 )
 
 total_min_costs <- min_cost_dfs %>%
@@ -286,9 +297,9 @@ ui <- fluidPage(
     width = 12,
     tabsetPanel(
       id = "main_tabs",
-      selected = "About",
+      selected = "Introduction", # Changed default tab
       
-      tabPanel("About",
+      tabPanel("Introduction",
                div(class = "content-container",
                    div(class = "about-section",
                        h2("About Our Project"),
@@ -302,24 +313,6 @@ ui <- fluidPage(
                          tags$li("For businesses, it can inform decisions about employee compensation and location planning."),
                          tags$li("For researchers, it offers a robust dataset for studying economic disparities and well-being across the state.")
                        ),
-                       div(class = "section-title", "Our Methodology"),
-                       p("Our methodology involves compiling data from various sources to estimate the costs associated with essential goods and services. We categorize expenses to provide a comprehensive view of living costs. We differentiate between 'Minimum Cost' and 'Average Cost' to reflect different standards of living."),
-                       p("The data presented here is a sample and will be replaced with real datasets in future iterations."),
-                       div(class = "section-title", "Our Variables"),
-                       tags$ol(
-                         tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling."))),
-                         tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries and meals. This is calculated using average food prices for common items, considering the nutritional needs and dietary patterns for different age groups and family structures. It accounts for both at-home consumption and a small allowance for eating out."))),
-                         tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting, personal vehicle maintenance (gas, insurance, repairs), and public transit fares where applicable. We factor in the average commute distances in each county and availability of public transportation options."))),
-                         tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes, sales taxes on goods and services, and property taxes (for homeowners or indirectly through rent). Federal taxes are also considered to provide a holistic view of the tax burden."))),
-                         tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average healthcare utilization rates."))),
-                         tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
-                         tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
-                         tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
-                         tags$li(div(class = "about-variable-item", h4("Utilities"), p("Utilities cover basic household services such as electricity, water, natural gas, heating oil, and waste removal. These are estimated based on average consumption rates for typical households."))),
-                         tags$li(div(class = "about-variable-item", h4("Miscellaneous"), p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies. It represents a buffer for unforeseen costs."))),
-                         tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
-                       ),
-                       
                        div(class = "section-title", "Minimum vs Average Cost"),
                        p("In this dashboard, you’ll see both 'Minimum Cost' and 'Average Cost' estimates for each location in Virginia. But what do they really mean?"),
                        p("The Minimum Cost is based on a survival budget, it reflects the lowest possible expenses needed to cover basic needs like housing, food, healthcare, and transportation. This is often used to understand what it takes to just get by, without any extras."),
@@ -328,20 +321,13 @@ ui <- fluidPage(
                        
                        div(class = "section-title", "How to Use This Dashboard"),
                        tags$ol(
-                         tags$li("Start on the 'About' page for an introduction to our project, why it's important, our methods, and what each variable means."),
-                         tags$li("Click the 'Minimum Cost' or 'Average Cost' tab to see the data."),
+                         tags$li("Start on the 'Introduction' page for an overview of our project, why it's important, and how to use this tool."),
+                         tags$li("Navigate to the 'Methodology' tab to understand how we calculate costs and the sources we use."),
+                         tags$li("Click the 'Minimum Cost' or 'Average Cost' tab to explore the data."),
                          tags$li("Use the 'Select County or City' dropdown menu to choose a location in Virginia."),
                          tags$li("As you select a location, the Cost Table, Map, and Bar Chart will all update automatically."),
-                         tags$li("The Cost Table shows a detailed breakdown of expenses for different family types. The Map shows the name of the county you hover over."),
-                         tags$li("The Bar Chart visualizes each expense category's share of the total cost. Hover over any bar to see the exact cost."),
-                         tags$li("Switch between the 'Minimum Cost' and 'Average Cost' tabs to compare different living standards and explore costs across Virginia.")
-                       ),
-                       div(class = "section-title", "Sources"),
-                       tags$ul(
-                         tags$li("U.S. Census Bureau (population demographics, income data)"),
-                         tags$li("Bureau of Labor Statistics (consumer price index, employment costs)"),
-                         tags$li("Local government data (property tax rates, utility costs)"),
-                         tags$li("Other relevant research and surveys.")
+                         tags$li("The Cost Table shows a detailed breakdown of expenses for different family types. The Map displays total costs across Virginia."),
+                         tags$li("The Bar Chart visualizes each expense category's share of the total cost. Hover over any bar to see the exact cost.")
                        ),
                        div(class = "section-title", "Acknowledgement"),
                        tags$ul(
@@ -380,6 +366,54 @@ ui <- fluidPage(
                    div(class = "section-desc", "A visualization of the average cost components."),
                    plotlyOutput("avg_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
+               )
+      ),
+      # *** NEW: Methodology Tab ***
+      tabPanel("Methodology",
+               div(class = "content-container",
+                   div(class = "about-section",
+                       div(class = "section-title", "Our Methodology"),
+                       p("Our methodology involves compiling data from various sources to estimate the costs associated with essential goods and services. We categorize expenses to provide a comprehensive view of living costs. We differentiate between 'Minimum Cost' and 'Average Cost' to reflect different standards of living."),
+                       p("The data is collected for each county and independent city in Virginia and processed to align with the family structures defined in the next section."),
+                       
+                       div(class = "section-title", "Our Variables"),
+                       tags$ol(
+                         tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling."))),
+                         tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries and meals. This is calculated using average food prices for common items, considering the nutritional needs and dietary patterns for different age groups and family structures. It accounts for both at-home consumption and a small allowance for eating out."))),
+                         tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting, personal vehicle maintenance (gas, insurance, repairs), and public transit fares where applicable. We factor in the average commute distances in each county and availability of public transportation options."))),
+                         tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes, sales taxes on goods and services, and property taxes (for homeowners or indirectly through rent). Federal taxes are also considered to provide a holistic view of the tax burden."))),
+                         tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average healthcare utilization rates."))),
+                         tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
+                         tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
+                         tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
+                         tags$li(div(class = "about-variable-item", h4("Utilities"), p("Utilities cover basic household services such as electricity, water, natural gas, heating oil, and waste removal. These are estimated based on average consumption rates for typical households."))),
+                         tags$li(div(class = "about-variable-item", h4("Miscellaneous"), p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies. It represents a buffer for unforeseen costs."))),
+                         tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
+                       ),
+                       
+                       div(class = "section-title", "Sources"),
+                       p("Data is compiled from a variety of public and private sources to ensure accuracy and relevance. Key sources include:"),
+                       tags$ul(
+                         tags$li("U.S. Census Bureau (population demographics, income data)"),
+                         tags$li("Bureau of Labor Statistics (consumer price index, employment costs)"),
+                         tags$li("Local government data (property tax rates, utility costs)"),
+                         tags$li("Other relevant research and surveys.")
+                       )
+                   )
+               )
+      ),
+      # *** NEW: Results Tab ***
+      tabPanel("Results",
+               div(class = "content-container",
+                   div(class = "about-section",
+                       h2("Project Results"),
+                       p("This section will present the key findings and results from our cost of living analysis."),
+                       p("Detailed comparisons between minimum and average costs across different regions of Virginia will be provided here, along with visualizations highlighting significant disparities and trends."),
+                       div(class="future-text-section",
+                           h4("Analysis Coming Soon"),
+                           p("This area is reserved for future text, charts, and data tables that summarize our findings.")
+                       )
+                   )
                )
       )
     )
