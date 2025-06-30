@@ -128,7 +128,7 @@ avg_childcare_data <- process_data(avg_childcare_raw)
 
 # --- Create Unified Data Sources ---
 
-# 1. Tidy data source for the detailed TABLE
+# 1. Tidy data source for the detailed TABLE and BAR GRAPH
 all_costs_long_for_table_raw <- bind_rows(
   min_utilities_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
@@ -179,30 +179,7 @@ all_costs_long_for_table <- all_costs_long_for_table_raw %>%
   summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop')
 
 
-# 2. Tidy data source for the total cost BAR GRAPH
-all_costs_for_plot_raw <- bind_rows(
-  min_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "min"),
-  avg_utilities_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Utilities", Type = "avg"),
-  min_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "min"),
-  avg_elder_care_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Elder Care", Type = "avg"),
-  min_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "min"),
-  avg_transportation_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Transportation", Type = "avg"),
-  min_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "min"),
-  avg_technology_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Technology", Type = "avg"),
-  min_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "min"),
-  avg_food_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Food", Type = "avg"),
-  min_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "min"),
-  avg_tax_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Taxes", Type = "avg"),
-  min_childcare_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Childcare", Type = "min"),
-  avg_childcare_data %>% select(County, Cost = `Total Monthly Cost`) %>% mutate(CostVariable = "Childcare", Type = "avg")
-)
-
-all_costs_for_plot <- all_costs_for_plot_raw %>%
-  group_by(County, CostVariable, Type) %>%
-  summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop')
-
-
-# 3. Prepare Data for the MAP (Summing Total Costs from all files)
+# 2. Prepare Data for the MAP (Summing Total Costs from all files)
 min_cost_dfs <- list(
   min_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
   min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
@@ -297,7 +274,7 @@ ui <- fluidPage(
     width = 12,
     tabsetPanel(
       id = "main_tabs",
-      selected = "Introduction", # Changed default tab
+      selected = "Introduction", 
       
       tabPanel("Introduction",
                div(class = "content-container",
@@ -324,10 +301,8 @@ ui <- fluidPage(
                          tags$li("Start on the 'Introduction' page for an overview of our project, why it's important, and how to use this tool."),
                          tags$li("Navigate to the 'Methodology' tab to understand how we calculate costs and the sources we use."),
                          tags$li("Click the 'Minimum Cost' or 'Average Cost' tab to explore the data."),
-                         tags$li("Use the 'Select County or City' dropdown menu to choose a location in Virginia."),
-                         tags$li("As you select a location, the Cost Table, Map, and Bar Chart will all update automatically."),
-                         tags$li("The Cost Table shows a detailed breakdown of expenses for different family types. The Map displays total costs across Virginia."),
-                         tags$li("The Bar Chart visualizes each expense category's share of the total cost. Hover over any bar to see the exact cost.")
+                         tags$li("On these tabs, you will find separate controls for the table and the bar chart, allowing you to compare different scenarios."),
+                         tags$li("The Map displays total costs across Virginia and operates independently.")
                        ),
                        div(class = "section-title", "Acknowledgement"),
                        tags$ul(
@@ -339,15 +314,21 @@ ui <- fluidPage(
       tabPanel("Minimum Cost",
                div(class = "content-container",
                    div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")),
-                   selectInput("county_min", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Minimum Cost Table"),
-                   div(class = "section-desc", "Monthly minimum cost by category..."),
+                   # Dropdown for the table
+                   selectInput("county_min_table", "Select County or City for Table:", choices = virginia_county_names, selected = virginia_county_names[1]),
+                   div(class = "section-desc", "This table shows the monthly minimum cost by category for all family types in the selected county."),
                    div(class = "table-container", tableOutput("min_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total minimum monthly cost."),
+                   div(class = "section-desc", "This map displays the total minimum monthly cost for a representative family."),
                    leafletOutput("min_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the minimum cost components."),
+                   p("This graph shows the monthly minimum cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
+                   fluidRow(
+                     # New ID for plot's county selector
+                     column(6, selectInput("county_min_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1])),
+                     column(6, selectInput("family_structure_min", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4]))
+                   ),
                    plotlyOutput("min_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
@@ -355,20 +336,25 @@ ui <- fluidPage(
       tabPanel("Average Cost",
                div(class = "content-container",
                    div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")),
-                   selectInput("county_avg", "Select County or City:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-title", "Average Cost Table"),
-                   div(class = "section-desc", "Monthly average cost by category."),
+                   # Dropdown for the table
+                   selectInput("county_avg_table", "Select County or City for Table:", choices = virginia_county_names, selected = virginia_county_names[1]),
+                   div(class = "section-desc", "This table shows the monthly average cost by category for all family types in the selected county."),
                    div(class = "table-container", tableOutput("avg_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total average monthly cost."),
+                   div(class = "section-desc", "This map displays the total average monthly cost for a representative family."),
                    leafletOutput("avg_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
-                   div(class = "section-desc", "A visualization of the average cost components."),
+                   p("This graph shows the monthly average cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
+                   fluidRow(
+                     # New ID for plot's county selector
+                     column(6, selectInput("county_avg_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1])),
+                     column(6, selectInput("family_structure_avg", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4]))
+                   ),
                    plotlyOutput("avg_plot", height = 350),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
       ),
-      # *** NEW: Methodology Tab ***
       tabPanel("Methodology",
                div(class = "content-container",
                    div(class = "about-section",
@@ -402,7 +388,6 @@ ui <- fluidPage(
                    )
                )
       ),
-      # *** NEW: Results Tab ***
       tabPanel("Results",
                div(class = "content-container",
                    div(class = "about-section",
@@ -423,26 +408,18 @@ ui <- fluidPage(
 # --- Server Logic ---
 server <- function(input, output, session) {
   
-  # --- Reactive data filtering ---
+  # --- Reactive data filtering for Table ---
+  
   min_cost_data_for_table_filtered <- reactive({
-    req(input$county_min)
-    all_costs_long_for_table %>% filter(County == input$county_min, Type == "min")
+    req(input$county_min_table)
+    all_costs_long_for_table %>% filter(County == input$county_min_table, Type == "min")
   })
   
   avg_cost_data_for_table_filtered <- reactive({
-    req(input$county_avg)
-    all_costs_long_for_table %>% filter(County == input$county_avg, Type == "avg")
+    req(input$county_avg_table)
+    all_costs_long_for_table %>% filter(County == input$county_avg_table, Type == "avg")
   })
   
-  min_plot_data_filtered <- reactive({
-    req(input$county_min)
-    all_costs_for_plot %>% filter(County == input$county_min, Type == "min")
-  })
-  
-  avg_plot_data_filtered <- reactive({
-    req(input$county_avg)
-    all_costs_for_plot %>% filter(County == input$county_avg, Type == "avg")
-  })
   
   # --- Reusable Functions for Rendering ---
   generate_table_display <- function(filtered_data) {
@@ -471,7 +448,6 @@ server <- function(input, output, session) {
       arrange(`Cost Variable`)
   }
   
-  # Function to format the final table for rendering
   format_cost_table <- function(df) {
     df$`Cost Variable` <- as.character(df$`Cost Variable`)
     
@@ -496,7 +472,14 @@ server <- function(input, output, session) {
   }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
   output$min_plot <- renderPlotly({
-    plot_data <- min_plot_data_filtered()
+    
+    req(input$county_min_plot, input$family_structure_min)
+    plot_data <- all_costs_long_for_table %>%
+      filter(
+        County == input$county_min_plot,
+        Type == "min",
+        FamilyStructure == input$family_structure_min
+      )
     
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
@@ -507,8 +490,11 @@ server <- function(input, output, session) {
     )) +
       geom_col(fill = "steelblue", width = 0.8) + 
       scale_x_discrete(limits = cost_variables_list) + 
-      coord_cartesian(ylim = c(0, 8000)) +
-      labs(title = paste("Minimum Monthly Cost Breakdown -", input$county_min), y = "Monthly Cost ($)", x = "Cost Category") +
+      labs(
+        title = paste("Minimum Monthly Cost Breakdown for", input$family_structure_min, "in", input$county_min_plot),
+        y = "Monthly Cost ($)", 
+        x = "Cost Category"
+      ) +
       theme_minimal() +
       theme(
         plot.title = element_text(hjust = 0.5),
@@ -542,7 +528,14 @@ server <- function(input, output, session) {
   }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
   output$avg_plot <- renderPlotly({
-    plot_data <- avg_plot_data_filtered()
+    
+    req(input$county_avg_plot, input$family_structure_avg)
+    plot_data <- all_costs_long_for_table %>%
+      filter(
+        County == input$county_avg_plot,
+        Type == "avg",
+        FamilyStructure == input$family_structure_avg
+      )
     
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
@@ -553,8 +546,11 @@ server <- function(input, output, session) {
     )) +
       geom_col(fill = "darkorange", width = 0.8) +
       scale_x_discrete(limits = cost_variables_list) +
-      coord_cartesian(ylim = c(0, 15000))+
-      labs(title = paste("Average Monthly Cost Breakdown -", input$county_avg), y = "Monthly Cost ($)", x = "Cost Category") +
+      labs(
+        title = paste("Average Monthly Cost Breakdown for", input$family_structure_avg, "in", input$county_avg_plot),
+        y = "Monthly Cost ($)", 
+        x = "Cost Category"
+      ) +
       theme_minimal() +
       theme(
         plot.title = element_text(hjust = 0.5),
