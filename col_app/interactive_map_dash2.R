@@ -240,9 +240,9 @@ ui <- fluidPage(
         --active-tab-bg: #35B779; /* Green from viridis */
         --title-color: #2D3A52;
         --table-header-bg: #404788; /* Indigo from mako */
-        --table-col1-bg: #F0F921;   /* Bright yellow from viridis */
-        --table-col1-text: #440154;
-        --table-col1-hover: #F8E645;
+        --table-col1-bg: #F0F921;   /* (No longer used) Bright yellow from viridis */
+        --table-col1-text: #440154; /* (No longer used) */
+        --table-col1-hover: #F8E645;/* (No longer used) */
         --table-total-bg: #21908C;  /* Teal from viridis */
         --table-total-text: #FFFFFF;
       }
@@ -259,21 +259,31 @@ ui <- fluidPage(
       .nav-tabs > li.active > a, .nav-tabs > li.active > a:focus, .nav-tabs > li.active > a:hover { color: white; background-color: var(--active-tab-bg); border-color: var(--active-tab-bg); }
       .content-container { max-width: 95%; margin: 0 auto; padding: 0 15px; }
       .shiny-plot-output, .leaflet-container, .plotly { border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100% !important; }
-      .table-container { margin: 20px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: white; }
-      table.data { width: 100%; border-collapse: collapse; margin: 0; font-size: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-      table.data td { padding: 12px; border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s ease; }
-      table.data tbody tr:nth-child(even) { background-color: #f8fafc; }
-      table.data tbody tr:hover { background-color: #f1f5f9; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-      table.data th { background-color: var(--table-header-bg); color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; }
-      table.data th:first-child { border-top-left-radius: 10px; }
-      table.data th:last-child { border-top-right-radius: 10px; }
-      table.data td:first-child { background-color: var(--table-col1-bg); font-weight: bold; color: var(--table-col1-text); border-right: 2px solid var(--table-header-bg); position: relative; }
-      table.data td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--table-header-bg), var(--title-color)); }
-      table.data tbody tr:hover td:first-child { background-color: var(--table-col1-hover); }
-      table.data tbody tr:last-child td { border-bottom: none; }
-      table.data tbody tr:last-child { background-color: #f0f4f8; font-weight: bold; border-top: 2px solid var(--table-total-bg); }
-      table.data tbody tr:last-child td { color: var(--title-color); font-size: 16px; font-weight: bold; }
-      table.data tbody tr:last-child td:first-child { background-color: var(--table-total-bg); color: var(--table-total-text); }
+      
+      .table-container { 
+        margin: 20px 0; 
+        border-radius: 10px; 
+        overflow-y: auto; 
+        max-height: 450px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+        background-color: white; 
+      }
+      .table-container table { width: 100%; border-collapse: collapse; margin: 0; font-size: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+      .table-container table td { padding: 12px; border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s ease; }
+      .table-container table tbody tr:nth-child(even) { background-color: #f8fafc; }
+      .table-container table tbody tr:hover { background-color: #f1f5f9; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+      .table-container table th { background-color: var(--table-header-bg); color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; }
+      .table-container table th:first-child { border-top-left-radius: 10px; }
+      .table-container table th:last-child { border-top-right-radius: 10px; }
+      /* MODIFIED: Changed first column color to match header */
+      .table-container table td:first-child { background-color: var(--table-header-bg); font-weight: bold; color: white; border-right: 2px solid var(--table-header-bg); position: relative; }
+      .table-container table td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--table-header-bg), var(--title-color)); }
+      /* MODIFIED: Changed hover color for first column to match new style */
+      .table-container table tbody tr:hover td:first-child { background-color: #5C67A1; /* Lighter version of header for hover */ }
+      .table-container table tbody tr:last-child td { border-bottom: none; }
+      .table-container table tbody tr:last-child { background-color: #f0f4f8; font-weight: bold; border-top: 2px solid var(--table-total-bg); }
+      .table-container table tbody tr:last-child td { color: var(--title-color); font-size: 16px; font-weight: bold; }
+      .table-container table tbody tr:last-child td:first-child { background-color: var(--table-total-bg); color: var(--table-total-text); }
       .leaflet-popup-content-wrapper { border-radius: 8px; padding: 10px; }
       .leaflet-popup-content { margin: 8px 12px; line-height: 1.5; }
       .map-popup-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; color: var(--title-color); }
@@ -342,7 +352,7 @@ ui <- fluidPage(
                      column(6, selectInput("county_min_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1])),
                      column(6, selectInput("family_structure_min", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4]))
                    ),
-                   plotlyOutput("min_plot", height = 350),
+                   plotlyOutput("min_plot", height = 400),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
       ),
@@ -362,7 +372,7 @@ ui <- fluidPage(
                      column(6, selectInput("county_avg_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1])),
                      column(6, selectInput("family_structure_avg", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4]))
                    ),
-                   plotlyOutput("avg_plot", height = 350),
+                   plotlyOutput("avg_plot", height = 400),
                    div(class = "future-text-section", h4("Additional"), p("This section is reserved for future analysis..."))
                )
       ),
@@ -516,7 +526,6 @@ server <- function(input, output, session) {
   })
   
   output$min_map <- renderLeaflet({
-    # *** FIXED: Explicitly generate color vector for the palette ***
     pal <- colorQuantile(palette = viridis::viridis(5, direction = -1), domain = va_map_data_min$Cost, n = 5, na.color = "#bdbdbd")
     leaflet(va_map_data_min) %>%
       addTiles() %>%
@@ -574,7 +583,6 @@ server <- function(input, output, session) {
   })
   
   output$avg_map <- renderLeaflet({
-    # *** FIXED: Explicitly generate color vector for the palette ***
     pal <- colorQuantile(palette = viridis::inferno(5, direction = -1), domain = va_map_data_avg$Cost, n=5, na.color = "#bdbdbd")
     leaflet(va_map_data_avg) %>%
       addTiles() %>%
