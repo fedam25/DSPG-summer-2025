@@ -7,6 +7,7 @@ library(RColorBrewer)
 library(ggplot2)
 library(plotly)
 library(readxl)
+library(viridis)
 
 options(tigris_use_cache = TRUE)
 
@@ -90,7 +91,6 @@ process_data <- function(df) {
   
   # Check if 'Total Monthly Cost' column exists.
   if (!"Total Monthly Cost" %in% names(df_std)) {
-    # If not, create it. We'll assume it should be the value for a representative family.
     if ("2 Adults + 2 Children" %in% names(df_std)) {
       df_processed <- df_std %>%
         mutate(`Total Monthly Cost` = `2 Adults + 2 Children`)
@@ -128,7 +128,6 @@ min_tax_data <- process_data(min_tax_raw)
 avg_tax_data <- process_data(avg_tax_raw)
 min_childcare_data <- process_data(min_childcare_raw)
 avg_childcare_data <- process_data(avg_childcare_raw)
-# *** NEW: Process Housing data ***
 min_housing_data <- process_data(min_housing_raw)
 avg_housing_data <- process_data(avg_housing_raw)
 
@@ -235,48 +234,49 @@ va_map_data_avg <- left_join(va_counties, total_avg_costs, by = "NAME")
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
-      /* Basic page styling */
-      .custom-header { background-color: #001f3f; padding: 30px 20px; margin-bottom: 20px; text-align: center; border-radius: 10px; }
+      /* Viridis-based color theme */
+      :root {
+        --header-bg: #2D3A52;      /* Dark blue-gray from mako */
+        --active-tab-bg: #35B779; /* Green from viridis */
+        --title-color: #2D3A52;
+        --table-header-bg: #404788; /* Indigo from mako */
+        --table-col1-bg: #F0F921;   /* Bright yellow from viridis */
+        --table-col1-text: #440154;
+        --table-col1-hover: #F8E645;
+        --table-total-bg: #21908C;  /* Teal from viridis */
+        --table-total-text: #FFFFFF;
+      }
+      .custom-header { background-color: var(--header-bg); padding: 30px 20px; margin-bottom: 20px; text-align: center; border-radius: 10px; }
       .custom-header h1 { color: white; font-size: 38px; font-weight: bold; margin: 0; }
       .intro-text, .project-intro, .about-section, .future-text-section { font-size: 17px; margin-bottom: 20px; padding: 15px; background-color: #f8f8f8; border-radius: 10px; border: 1px solid #e0e0e0; }
       .future-text-section { margin-top: 30px; }
-      .section-title { font-size: 24px; font-weight: bold; margin-top: 30px; margin-bottom: 10px; color: #001f3f; }
+      .section-title { font-size: 24px; font-weight: bold; margin-top: 30px; margin-bottom: 10px; color: var(--title-color); }
       .section-desc { font-size: 16px; margin-bottom: 20px; color: #555; }
-      .about-variable-item { margin-bottom: 15px; padding-left: 20px; border-left: 3px solid #001f3f; }
+      .about-variable-item { margin-bottom: 15px; padding-left: 20px; border-left: 3px solid var(--title-color); }
       .about-variable-item h4 { margin-top: 0; margin-bottom: 5px; color: #333; }
       .about-variable-item p { font-size: 16px; line-height: 1.5; }
-      .nav-tabs > li > a { background-color: #e9ecef; color: #001f3f; font-weight: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-right: 5px; }
-      .nav-tabs > li.active > a, .nav-tabs > li.active > a:focus, .nav-tabs > li.active > a:hover { color: white; background-color: #007bff; border-color: #007bff; }
+      .nav-tabs > li > a { background-color: #e9ecef; color: var(--title-color); font-weight: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-right: 5px; }
+      .nav-tabs > li.active > a, .nav-tabs > li.active > a:focus, .nav-tabs > li.active > a:hover { color: white; background-color: var(--active-tab-bg); border-color: var(--active-tab-bg); }
       .content-container { max-width: 95%; margin: 0 auto; padding: 0 15px; }
       .shiny-plot-output, .leaflet-container, .plotly { border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100% !important; }
-
-      /* Table Container Styling */
       .table-container { margin: 20px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: white; }
       table.data { width: 100%; border-collapse: collapse; margin: 0; font-size: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
       table.data td { padding: 12px; border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s ease; }
       table.data tbody tr:nth-child(even) { background-color: #f8fafc; }
       table.data tbody tr:hover { background-color: #f1f5f9; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-      
-      /* Table Header (First Row) Styling */
-      table.data th { background-color: #2b6cb0; color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; }
+      table.data th { background-color: var(--table-header-bg); color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; }
       table.data th:first-child { border-top-left-radius: 10px; }
       table.data th:last-child { border-top-right-radius: 10px; }
-      
-      /* Table First Column Styling */
-      table.data td:first-child { background-color: #EBF8FF; font-weight: bold; color: #1a365d; border-right: 2px solid #3182ce; position: relative; }
-      table.data td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, #3182ce, #2c5282); }
-      table.data tbody tr:hover td:first-child { background-color: #BEE3F8; }
-      
-      /* Special styling for the 'Total Cost' row */
+      table.data td:first-child { background-color: var(--table-col1-bg); font-weight: bold; color: var(--table-col1-text); border-right: 2px solid var(--table-header-bg); position: relative; }
+      table.data td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--table-header-bg), var(--title-color)); }
+      table.data tbody tr:hover td:first-child { background-color: var(--table-col1-hover); }
       table.data tbody tr:last-child td { border-bottom: none; }
-      table.data tbody tr:last-child { background-color: #f0fff4; font-weight: bold; border-top: 2px solid #38a169; }
-      table.data tbody tr:last-child td { color: #22543d; font-size: 16px; font-weight: bold; }
-      table.data tbody tr:last-child td:first-child { background-color: #2f855a; color: white; }
-      
-      /* Map Popup Styling */
+      table.data tbody tr:last-child { background-color: #f0f4f8; font-weight: bold; border-top: 2px solid var(--table-total-bg); }
+      table.data tbody tr:last-child td { color: var(--title-color); font-size: 16px; font-weight: bold; }
+      table.data tbody tr:last-child td:first-child { background-color: var(--table-total-bg); color: var(--table-total-text); }
       .leaflet-popup-content-wrapper { border-radius: 8px; padding: 10px; }
       .leaflet-popup-content { margin: 8px 12px; line-height: 1.5; }
-      .map-popup-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; color: #001f3f; }
+      .map-popup-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; color: var(--title-color); }
       .map-popup-value { font-size: 14px; color: #333; }
     "))
   ),
@@ -498,7 +498,8 @@ server <- function(input, output, session) {
       y = Cost,
       text = paste0(CostVariable, ": $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
     )) +
-      geom_col(fill = "steelblue", width = 0.8) + 
+      geom_col(aes(fill = CostVariable), width = 0.8) + 
+      scale_fill_viridis_d(option = "cividis", guide = "none") +
       scale_x_discrete(limits = cost_variables_list) + 
       labs(
         title = paste("Minimum Monthly Cost Breakdown for", input$family_structure_min, "in", input$county_min_plot),
@@ -515,7 +516,8 @@ server <- function(input, output, session) {
   })
   
   output$min_map <- renderLeaflet({
-    pal <- colorQuantile(palette = c("green", "yellow", "red"), domain = va_map_data_min$Cost, n = 5, na.color = "#bdbdbd")
+    # *** FIXED: Explicitly generate color vector for the palette ***
+    pal <- colorQuantile(palette = viridis::viridis(5, direction = -1), domain = va_map_data_min$Cost, n = 5, na.color = "#bdbdbd")
     leaflet(va_map_data_min) %>%
       addTiles() %>%
       addPolygons(
@@ -554,7 +556,8 @@ server <- function(input, output, session) {
       y = Cost,
       text = paste0(CostVariable, ": $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
     )) +
-      geom_col(fill = "darkorange", width = 0.8) +
+      geom_col(aes(fill = CostVariable), width = 0.8) +
+      scale_fill_viridis_d(option = "plasma", guide = "none") +
       scale_x_discrete(limits = cost_variables_list) +
       labs(
         title = paste("Average Monthly Cost Breakdown for", input$family_structure_avg, "in", input$county_avg_plot),
@@ -571,7 +574,8 @@ server <- function(input, output, session) {
   })
   
   output$avg_map <- renderLeaflet({
-    pal <- colorQuantile(palette = c("lightgreen", "gold", "darkred"), domain = va_map_data_avg$Cost, n=5, na.color = "#bdbdbd")
+    # *** FIXED: Explicitly generate color vector for the palette ***
+    pal <- colorQuantile(palette = viridis::inferno(5, direction = -1), domain = va_map_data_avg$Cost, n=5, na.color = "#bdbdbd")
     leaflet(va_map_data_avg) %>%
       addTiles() %>%
       addPolygons(
