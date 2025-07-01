@@ -275,10 +275,8 @@ ui <- fluidPage(
       .table-container table th { background-color: var(--table-header-bg); color: white; font-weight: bold; padding: 15px 12px; text-align: left; border: none; font-size: 16px; }
       .table-container table th:first-child { border-top-left-radius: 10px; }
       .table-container table th:last-child { border-top-right-radius: 10px; }
-      /* MODIFIED: Changed first column color to match header */
       .table-container table td:first-child { background-color: var(--table-header-bg); font-weight: bold; color: white; border-right: 2px solid var(--table-header-bg); position: relative; }
       .table-container table td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--table-header-bg), var(--title-color)); }
-      /* MODIFIED: Changed hover color for first column to match new style */
       .table-container table tbody tr:hover td:first-child { background-color: #5C67A1; /* Lighter version of header for hover */ }
       .table-container table tbody tr:last-child td { border-bottom: none; }
       .table-container table tbody tr:last-child { background-color: #f0f4f8; font-weight: bold; border-top: 2px solid var(--table-total-bg); }
@@ -468,6 +466,7 @@ server <- function(input, output, session) {
       arrange(`Cost Variable`)
   }
   
+  # MODIFIED: Changed number formatting to show rounded integers
   format_cost_table <- function(df) {
     df$`Cost Variable` <- as.character(df$`Cost Variable`)
     
@@ -480,8 +479,8 @@ server <- function(input, output, session) {
     df_with_total %>%
       mutate(across(where(is.numeric), ~case_when(
         is.na(.) ~ "N/A",
-        . == 0 ~ "$0.00",
-        TRUE ~ paste0("$", trimws(format(round(., 2), nsmall = 2, big.mark = ",")))
+        . == 0 ~ "$0",
+        TRUE ~ paste0("$", trimws(format(round(., 0), nsmall = 0, big.mark = ",")))
       )))
   }
   
@@ -503,10 +502,11 @@ server <- function(input, output, session) {
     
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
+    # Changed number formatting in tooltip to show rounded integers
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
       y = Cost,
-      text = paste0(CostVariable, ": $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
+      text = paste0(CostVariable, ": $", format(round(Cost, 0), nsmall = 0, big.mark = ","))
     )) +
       geom_col(aes(fill = CostVariable), width = 0.8) + 
       scale_fill_viridis_d(option = "cividis", guide = "none") +
@@ -560,10 +560,11 @@ server <- function(input, output, session) {
     
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
+    # Changed number formatting in tooltip to show rounded integers
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
       y = Cost,
-      text = paste0(CostVariable, ": $", format(round(Cost, 2), nsmall = 2, big.mark = ","))
+      text = paste0(CostVariable, ": $", format(round(Cost, 0), nsmall = 0, big.mark = ","))
     )) +
       geom_col(aes(fill = CostVariable), width = 0.8) +
       scale_fill_viridis_d(option = "plasma", guide = "none") +
