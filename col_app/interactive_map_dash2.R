@@ -60,6 +60,10 @@ avg_tax_raw <- read_csv("average_tax_cost.csv")
 min_childcare_raw <- read_csv("childcare_minimum_cost.csv")
 avg_childcare_raw <- read_csv("childcare_average_cost.csv")
 
+# Housing data
+min_housing_raw <- read_csv("minimum_housing_cost.csv")
+avg_housing_raw <- read_csv("average_housing_cost.csv")
+
 
 # Function to standardize column names, ensuring they match the app's internal lists.
 standardize_cols <- function(df) {
@@ -124,6 +128,9 @@ min_tax_data <- process_data(min_tax_raw)
 avg_tax_data <- process_data(avg_tax_raw)
 min_childcare_data <- process_data(min_childcare_raw)
 avg_childcare_data <- process_data(avg_childcare_raw)
+# *** NEW: Process Housing data ***
+min_housing_data <- process_data(min_housing_raw)
+avg_housing_data <- process_data(avg_housing_raw)
 
 
 # --- Create Unified Data Sources ---
@@ -171,7 +178,13 @@ all_costs_long_for_table_raw <- bind_rows(
     mutate(CostVariable = "Childcare", Type = "min"),
   avg_childcare_data %>%
     pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
-    mutate(CostVariable = "Childcare", Type = "avg")
+    mutate(CostVariable = "Childcare", Type = "avg"),
+  min_housing_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Housing", Type = "min"),
+  avg_housing_data %>%
+    pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>%
+    mutate(CostVariable = "Housing", Type = "avg")
 )
 
 all_costs_long_for_table <- all_costs_long_for_table_raw %>%
@@ -187,7 +200,8 @@ min_cost_dfs <- list(
   min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
   min_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
   min_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`),
-  min_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`)
+  min_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`),
+  min_housing_data %>% select(County, Cost_Housing = `Total Monthly Cost`)
 )
 
 avg_cost_dfs <- list(
@@ -197,7 +211,8 @@ avg_cost_dfs <- list(
   avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
   avg_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
   avg_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`),
-  avg_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`)
+  avg_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`),
+  avg_housing_data %>% select(County, Cost_Housing = `Total Monthly Cost`)
 )
 
 total_min_costs <- min_cost_dfs %>%
@@ -315,7 +330,6 @@ ui <- fluidPage(
                div(class = "content-container",
                    div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")),
                    div(class = "section-title", "Minimum Cost Table"),
-                   # Dropdown for the table
                    selectInput("county_min_table", "Select County or City for Table:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-desc", "This table shows the monthly minimum cost by category for all family types in the selected county."),
                    div(class = "table-container", tableOutput("min_table")),
@@ -325,7 +339,6 @@ ui <- fluidPage(
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
                    p("This graph shows the monthly minimum cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
                    fluidRow(
-                     # New ID for plot's county selector
                      column(6, selectInput("county_min_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1])),
                      column(6, selectInput("family_structure_min", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4]))
                    ),
@@ -337,7 +350,6 @@ ui <- fluidPage(
                div(class = "content-container",
                    div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")),
                    div(class = "section-title", "Average Cost Table"),
-                   # Dropdown for the table
                    selectInput("county_avg_table", "Select County or City for Table:", choices = virginia_county_names, selected = virginia_county_names[1]),
                    div(class = "section-desc", "This table shows the monthly average cost by category for all family types in the selected county."),
                    div(class = "table-container", tableOutput("avg_table")),
@@ -347,7 +359,6 @@ ui <- fluidPage(
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
                    p("This graph shows the monthly average cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
                    fluidRow(
-                     # New ID for plot's county selector
                      column(6, selectInput("county_avg_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1])),
                      column(6, selectInput("family_structure_avg", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4]))
                    ),
@@ -409,7 +420,6 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   # --- Reactive data filtering for Table ---
-  
   min_cost_data_for_table_filtered <- reactive({
     req(input$county_min_table)
     all_costs_long_for_table %>% filter(County == input$county_min_table, Type == "min")
