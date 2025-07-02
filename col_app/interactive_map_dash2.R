@@ -191,43 +191,14 @@ all_costs_long_for_table <- all_costs_long_for_table_raw %>%
   summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop')
 
 
-# 2. Prepare Data for the MAP (Summing Total Costs from all files)
-min_cost_dfs <- list(
-  min_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
-  min_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
-  min_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
-  min_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
-  min_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
-  min_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`),
-  min_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`),
-  min_housing_data %>% select(County, Cost_Housing = `Total Monthly Cost`)
-)
+# 2. Prepare comprehensive data for the MAPS
+# This aggregates the long table to get a total cost for each county, family type, and cost type (min/avg)
+total_costs_for_map <- all_costs_long_for_table %>%
+  group_by(NAME = County, Type, FamilyStructure) %>%
+  summarise(TotalCost = sum(Cost, na.rm = TRUE), .groups = 'drop')
 
-avg_cost_dfs <- list(
-  avg_utilities_data %>% select(County, Cost_Utilities = `Total Monthly Cost`),
-  avg_elder_care_data %>% select(County, Cost_ElderCare = `Total Monthly Cost`),
-  avg_transportation_data %>% select(County, Cost_Transportation = `Total Monthly Cost`),
-  avg_technology_data %>% select(County, Cost_Technology = `Total Monthly Cost`),
-  avg_food_data %>% select(County, Cost_Food = `Total Monthly Cost`),
-  avg_tax_data %>% select(County, Cost_Taxes = `Total Monthly Cost`),
-  avg_childcare_data %>% select(County, Cost_Childcare = `Total Monthly Cost`),
-  avg_housing_data %>% select(County, Cost_Housing = `Total Monthly Cost`)
-)
-
-total_min_costs <- min_cost_dfs %>%
-  reduce(full_join, by = "County") %>%
-  pivot_longer(-County, names_to = "Cost_Category", values_to = "Cost_Value") %>%
-  group_by(NAME = County) %>%
-  summarise(Cost = sum(Cost_Value, na.rm = TRUE), .groups = 'drop')
-
-total_avg_costs <- avg_cost_dfs %>%
-  reduce(full_join, by = "County") %>%
-  pivot_longer(-County, names_to = "Cost_Category", values_to = "Cost_Value") %>%
-  group_by(NAME = County) %>%
-  summarise(Cost = sum(Cost_Value, na.rm = TRUE), .groups = 'drop')
-
-va_map_data_min <- left_join(va_counties, total_min_costs, by = "NAME")
-va_map_data_avg <- left_join(va_counties, total_avg_costs, by = "NAME")
+# Join the aggregated cost data with the spatial data for plotting
+va_map_data_full <- left_join(va_counties, total_costs_for_map, by = "NAME")
 
 
 # --- UI Definition ---
@@ -286,6 +257,10 @@ ui <- fluidPage(
       .leaflet-popup-content { margin: 8px 12px; line-height: 1.5; }
       .map-popup-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; color: var(--title-color); }
       .map-popup-value { font-size: 14px; color: #333; }
+      
+      /* NEW STYLE to ensure dropdown appears over map controls */
+      .selectize-dropdown { z-index: 1001; }
+
     "))
   ),
   
@@ -325,7 +300,7 @@ ui <- fluidPage(
                          tags$li("Navigate to the 'Methodology' tab to understand how we calculate costs and the sources we use."),
                          tags$li("Click the 'Minimum Cost' or 'Average Cost' tab to explore the data."),
                          tags$li("On these tabs, you will find separate controls for the table and the bar chart, allowing you to compare different scenarios."),
-                         tags$li("The Map displays total costs across Virginia and operates independently.")
+                         tags$li("The Map displays total costs across Virginia. Use the new dropdown menu above the map to see costs for different family types.")
                        ),
                        div(class = "section-title", "Acknowledgement"),
                        tags$ul(
@@ -342,7 +317,8 @@ ui <- fluidPage(
                    div(class = "section-desc", "This table shows the monthly minimum cost by category for all family types in the selected county."),
                    div(class = "table-container", tableOutput("min_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total minimum monthly cost for a representative family."),
+                   div(class = "section-desc", "This map displays the total minimum monthly cost across Virginia. Use the dropdown to select a family structure to see how costs vary."),
+                   selectInput("family_structure_map_min", "Select Family Structure for Map:", choices = family_structures_list, selected = family_structures_list[4]),
                    leafletOutput("min_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
                    p("This graph shows the monthly minimum cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
@@ -362,7 +338,8 @@ ui <- fluidPage(
                    div(class = "section-desc", "This table shows the monthly average cost by category for all family types in the selected county."),
                    div(class = "table-container", tableOutput("avg_table")),
                    div(class = "section-title", "Interactive County Map"),
-                   div(class = "section-desc", "This map displays the total average monthly cost for a representative family."),
+                   div(class = "section-desc", "This map displays the total average monthly cost across Virginia. Use the dropdown to select a family structure to see how costs vary."),
+                   selectInput("family_structure_map_avg", "Select Family Structure for Map:", choices = family_structures_list, selected = family_structures_list[4]),
                    leafletOutput("avg_map", height = 450),
                    div(class = "section-title", "Cost Breakdown Bar Chart"),
                    p("This graph shows the monthly average cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
@@ -438,6 +415,19 @@ server <- function(input, output, session) {
     all_costs_long_for_table %>% filter(County == input$county_avg_table, Type == "avg")
   })
   
+  # --- Reactive data filtering for Maps ---
+  min_map_data_filtered <- reactive({
+    req(input$family_structure_map_min)
+    va_map_data_full %>%
+      filter(Type == "min", FamilyStructure == input$family_structure_map_min)
+  })
+  
+  avg_map_data_filtered <- reactive({
+    req(input$family_structure_map_avg)
+    va_map_data_full %>%
+      filter(Type == "avg", FamilyStructure == input$family_structure_map_avg)
+  })
+  
   
   # --- Reusable Functions for Rendering ---
   generate_table_display <- function(filtered_data) {
@@ -466,7 +456,6 @@ server <- function(input, output, session) {
       arrange(`Cost Variable`)
   }
   
-  # MODIFIED: Changed number formatting to show rounded integers
   format_cost_table <- function(df) {
     df$`Cost Variable` <- as.character(df$`Cost Variable`)
     
@@ -502,7 +491,6 @@ server <- function(input, output, session) {
     
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
-    # Changed number formatting in tooltip to show rounded integers
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
       y = Cost,
@@ -526,12 +514,17 @@ server <- function(input, output, session) {
   })
   
   output$min_map <- renderLeaflet({
-    pal <- colorQuantile(palette = viridis::viridis(5, direction = -1), domain = va_map_data_min$Cost, n = 5, na.color = "#bdbdbd")
-    leaflet(va_map_data_min) %>%
+    map_data <- min_map_data_filtered()
+    
+    validate(need(nrow(map_data) > 0 && any(!is.na(map_data$TotalCost)), 
+                  "No data available for this selection."))
+    
+    pal <- colorQuantile(palette = viridis::viridis(5, direction = -1), domain = map_data$TotalCost, n = 5, na.color = "#bdbdbd")
+    leaflet(map_data) %>%
       addTiles() %>%
       addPolygons(
-        fillColor = ~pal(Cost), weight = 1, color = "white", fillOpacity = 0.7,
-        popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Cost:</strong><br>$", format(round(Cost, 0), big.mark=",")),
+        fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.7,
+        popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Minimum Cost:</strong><br>$", format(round(TotalCost, 0), big.mark=",")),
         label = ~NAME,
         labelOptions = labelOptions(
           style = list("font-weight" = "normal", padding = "3px 8px"),
@@ -539,7 +532,7 @@ server <- function(input, output, session) {
           direction = "auto"),
         highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
       ) %>%
-      addLegend(pal = pal, values = ~Cost, title = "Total Monthly Cost", na.label = "No Data")
+      addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data")
   })
   
   # --- Average Cost Tab Outputs ---
@@ -560,7 +553,6 @@ server <- function(input, output, session) {
     
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
     
-    # Changed number formatting in tooltip to show rounded integers
     p <- ggplot(plot_data, aes(
       x = CostVariable, 
       y = Cost,
@@ -584,12 +576,17 @@ server <- function(input, output, session) {
   })
   
   output$avg_map <- renderLeaflet({
-    pal <- colorQuantile(palette = viridis::inferno(5, direction = -1), domain = va_map_data_avg$Cost, n=5, na.color = "#bdbdbd")
-    leaflet(va_map_data_avg) %>%
+    map_data <- avg_map_data_filtered()
+    
+    validate(need(nrow(map_data) > 0 && any(!is.na(map_data$TotalCost)), 
+                  "No data available for this selection."))
+    
+    pal <- colorQuantile(palette = viridis::inferno(5, direction = -1), domain = map_data$TotalCost, n=5, na.color = "#bdbdbd")
+    leaflet(map_data) %>%
       addTiles() %>%
       addPolygons(
-        fillColor = ~pal(Cost), weight = 1, color = "white", fillOpacity = 0.7,
-        popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Cost:</strong><br>$", format(round(Cost, 0), big.mark=",")),
+        fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.7,
+        popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Average Cost:</strong><br>$", format(round(TotalCost, 0), big.mark=",")),
         label = ~NAME,
         labelOptions = labelOptions(
           style = list("font-weight" = "normal", padding = "3px 8px"),
@@ -597,7 +594,7 @@ server <- function(input, output, session) {
           direction = "auto"),
         highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
       ) %>%
-      addLegend(pal = pal, values = ~Cost, title = "Total Monthly Cost", na.label = "No Data")
+      addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data")
   })
   
 }
