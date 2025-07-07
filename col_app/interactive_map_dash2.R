@@ -126,8 +126,8 @@ all_costs_long_for_table <- all_costs_long_for_table_raw %>%
   group_by(County, FamilyStructure, CostVariable, Type) %>%
   summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop') %>%
   group_by(County, FamilyStructure, Type) %>%
-  # Calculate subtotal for Miscellaneous based on ALL other costs (including taxes)
-  mutate(subtotal_for_misc = sum(Cost, na.rm = TRUE)) %>%
+  # [*] UPDATED: Calculate subtotal for Miscellaneous EXCLUDING taxes.
+  mutate(subtotal_for_misc = sum(Cost[CostVariable != 'Taxes'], na.rm = TRUE)) %>%
   ungroup() %>%
   bind_rows(
     distinct(., County, FamilyStructure, Type, subtotal_for_misc) %>%
@@ -333,9 +333,10 @@ ui <- fluidPage(
                          tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
                          tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
                          tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
+                         # [*] UPDATED: Text for Miscellaneous variable explanation
                          tags$li(div(class = "about-variable-item", h4("Miscellaneous"), 
                                      p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies."),
-                                     p(strong("Note:"), "In this dashboard, it is calculated as 10% of the subtotal of all other costs.")
+                                     p(strong("Note:"), "Miscellaneous costs are estimated at 10% of the total budget (excluding taxes) to cover unexpected or one-time expenses (like new shoes or household repairs). It's just a standard estimate (10%) based on their calculation method (or methodology).")
                          )),
                          tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
                        ),
@@ -467,7 +468,7 @@ server <- function(input, output, session) {
     }
   }
   
-  # Rewritten function to make sure all variables are always listed
+  # Rewritten function to ensure all variables are always listed
   calculate_custom_cost <- function(cost_type, counties, adults, children, childcare_n, elders) {
     validate(
       need(length(counties) > 0, "Please select a location to see results."),
@@ -497,8 +498,9 @@ server <- function(input, output, session) {
     # Combine all primary costs
     primary_costs <- bind_rows(base_costs, childcare_costs, elder_care_costs)
     
-    # Calculate Miscellaneous based on the sum of primary costs for each county
+    # [*] UPDATED: Calculate Miscellaneous based on the sum of primary costs for each county, EXCLUDING TAXES
     misc_costs <- primary_costs %>%
+      filter(CostVariable != "Taxes") %>%
       group_by(County) %>%
       summarise(Cost = sum(Cost, na.rm = TRUE) * 0.10, .groups = 'drop') %>%
       mutate(CostVariable = "Miscellaneous")
@@ -524,11 +526,8 @@ server <- function(input, output, session) {
   
   format_comparison_table <- function(df) {
     df_char <- df %>% mutate(` ` = as.character(` `))
-    # Exclude Miscellaneous from the initial sum for the 'Monthly Total' to avoid double-counting
-    pre_total <- df_char %>% filter(` ` != "Miscellaneous")
-    totals <- pre_total %>% summarise(across(where(is.numeric), sum, na.rm = TRUE))
     
-    # Now add back the miscellaneous row and calculate totals
+    # Reorder to ensure Miscellaneous is last before totals
     misc_row <- df_char %>% filter(` ` == "Miscellaneous")
     df_ordered <- df_char %>% filter(` ` != "Miscellaneous") %>% bind_rows(misc_row)
     
