@@ -126,7 +126,7 @@ all_costs_long_for_table <- all_costs_long_for_table_raw %>%
   group_by(County, FamilyStructure, CostVariable, Type) %>%
   summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop') %>%
   group_by(County, FamilyStructure, Type) %>%
-  # [*] UPDATED: Calculate subtotal for Miscellaneous EXCLUDING taxes.
+  # Calculate subtotal for Miscellaneous EXCLUDING taxes.
   mutate(subtotal_for_misc = sum(Cost[CostVariable != 'Taxes'], na.rm = TRUE)) %>%
   ungroup() %>%
   bind_rows(
@@ -333,7 +333,7 @@ ui <- fluidPage(
                          tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
                          tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
                          tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
-                         # [*] UPDATED: Text for Miscellaneous variable explanation
+                         # Updated the explanation for Miscellaneous calculcation.
                          tags$li(div(class = "about-variable-item", h4("Miscellaneous"), 
                                      p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies."),
                                      p(strong("Note:"), "Miscellaneous costs are estimated at 10% of the total budget (excluding taxes) to cover unexpected or one-time expenses (like new shoes or household repairs). It's just a standard estimate (10%) based on their calculation method (or methodology).")
@@ -468,7 +468,7 @@ server <- function(input, output, session) {
     }
   }
   
-  # Rewritten function to ensure all variables are always listed
+  # Rewritten function to make sure all variables are always listed
   calculate_custom_cost <- function(cost_type, counties, adults, children, childcare_n, elders) {
     validate(
       need(length(counties) > 0, "Please select a location to see results."),
@@ -498,17 +498,17 @@ server <- function(input, output, session) {
     # Combine all primary costs
     primary_costs <- bind_rows(base_costs, childcare_costs, elder_care_costs)
     
-    # [*] UPDATED: Calculate Miscellaneous based on the sum of primary costs for each county, EXCLUDING TAXES
+    # Calculated Miscellaneous based on the sum of primary costs for each county, EXCLUDING TAXES
     misc_costs <- primary_costs %>%
       filter(CostVariable != "Taxes") %>%
       group_by(County) %>%
       summarise(Cost = sum(Cost, na.rm = TRUE) * 0.10, .groups = 'drop') %>%
       mutate(CostVariable = "Miscellaneous")
     
-    # Combine all costs including miscellaneous
+    # Combining all costs including miscellaneous
     final_costs_long <- bind_rows(primary_costs, misc_costs) %>% select(County, CostVariable, Cost)
     
-    # Create a template to make sure all variables are in the final table
+    # Creating a template to make sure all variables are in the final table
     template <- expand.grid(CostVariable = cost_variables_list, County = counties, stringsAsFactors = FALSE)
     
     # Join calculated costs to the template
@@ -553,3 +553,8 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
+
+
+
+
+
