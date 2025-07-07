@@ -46,6 +46,9 @@ min_childcare_raw <- read_csv("childcare_minimum_cost.csv")
 avg_childcare_raw <- read_csv("childcare_average_cost.csv")
 min_housing_raw <- read_csv("minimum_housing_cost.csv")
 avg_housing_raw <- read_csv("average_housing_cost.csv")
+min_healthcare_raw <- read_csv("minimum_healthcare_cost.csv")
+avg_healthcare_raw <- read_csv("average_healthcare_cost.csv")
+
 
 # Function to standardize column names
 standardize_cols <- function(df) {
@@ -95,6 +98,8 @@ min_childcare_data <- process_data(min_childcare_raw)
 avg_childcare_data <- process_data(avg_childcare_raw)
 min_housing_data <- process_data(min_housing_raw)
 avg_housing_data <- process_data(avg_housing_raw)
+min_healthcare_data <- process_data(min_healthcare_raw)
+avg_healthcare_data <- process_data(avg_healthcare_raw)
 
 
 # --- Create Unified Data Sources ---
@@ -112,14 +117,17 @@ all_costs_long_for_table_raw <- bind_rows(
   min_childcare_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Childcare", Type = "min"),
   avg_childcare_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Childcare", Type = "avg"),
   min_housing_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Housing", Type = "min"),
-  avg_housing_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Housing", Type = "avg")
+  avg_housing_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Housing", Type = "avg"),
+  min_healthcare_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Healthcare", Type = "min"),
+  avg_healthcare_data %>% pivot_longer(cols = all_of(family_structures_list), names_to = "FamilyStructure", values_to = "Cost") %>% mutate(CostVariable = "Healthcare", Type = "avg")
 )
 
 all_costs_long_for_table <- all_costs_long_for_table_raw %>%
   group_by(County, FamilyStructure, CostVariable, Type) %>%
   summarise(Cost = mean(Cost, na.rm = TRUE), .groups = 'drop') %>%
   group_by(County, FamilyStructure, Type) %>%
-  mutate(subtotal_for_misc = sum(Cost[CostVariable != 'Taxes'], na.rm = TRUE)) %>%
+  # Calculate subtotal for Miscellaneous based on ALL other costs (including taxes)
+  mutate(subtotal_for_misc = sum(Cost, na.rm = TRUE)) %>%
   ungroup() %>%
   bind_rows(
     distinct(., County, FamilyStructure, Type, subtotal_for_misc) %>%
@@ -172,10 +180,18 @@ ui <- fluidPage(
       #min_table table tbody tr:hover td:first-child, #avg_table table tbody tr:hover td:first-child { background-color: #5C67A1; }
       
       .table-container table tbody tr:last-child td { border-bottom: none; }
-      .table-container table tbody tr:nth-last-child(-n+2) { background-color: #f0f4f8; font-weight: bold; border-top: 2px solid var(--table-total-bg); }
-      .table-container table tbody tr:nth-last-child(-n+2) td { color: var(--title-color); font-size: 16px; font-weight: bold; }
-      .table-container table tbody tr:nth-last-child(-n+2) td:first-child { background-color: var(--table-total-bg); color: var(--table-total-text); }
-      
+
+      /* CSS rules to color the entire 'Total' rows green */
+      .table-container table tbody tr:nth-last-child(-n+2) {
+          border-top: 2px solid var(--table-header-bg);
+      }
+      .table-container table tbody tr:nth-last-child(-n+2) td {
+          background-color: var(--table-total-bg);
+          color: var(--table-total-text);
+          font-size: 16px;
+          font-weight: bold;
+      }
+
       .leaflet-popup-content-wrapper { border-radius: 8px; padding: 10px; }
       .selectize-dropdown { z-index: 1001; }
     "))
@@ -319,7 +335,7 @@ ui <- fluidPage(
                          tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
                          tags$li(div(class = "about-variable-item", h4("Miscellaneous"), 
                                      p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies."),
-                                     p(strong("Note:"), "In this dashboard, it is calculated as 10% of the subtotal of all other costs, excluding taxes.")
+                                     p(strong("Note:"), "In this dashboard, it is calculated as 10% of the subtotal of all other costs.")
                          )),
                          tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
                        ),
@@ -355,7 +371,6 @@ ui <- fluidPage(
 # --- Server Logic ---
 server <- function(input, output, session) {
   
-  # --- [EXISTING SERVER LOGIC - UNCHANGED] ---
   
   min_cost_data_for_table_filtered <- reactive({ req(input$county_min_table); all_costs_long_for_table %>% filter(County == input$county_min_table, Type == "min") })
   avg_cost_data_for_table_filtered <- reactive({ req(input$county_avg_table); all_costs_long_for_table %>% filter(County == input$county_avg_table, Type == "avg") })
@@ -440,7 +455,7 @@ server <- function(input, output, session) {
   })
   
   
-  # --- NEW SERVER LOGIC FOR CUSTOM COMPARISON] ---
+  # --- New Server Logic for Custom Comparison ---
   
   map_family_structure <- function(adults, children, elders) {
     if (elders > 0) {
@@ -452,35 +467,56 @@ server <- function(input, output, session) {
     }
   }
   
+  # Rewritten function to make sure all variables are always listed
   calculate_custom_cost <- function(cost_type, counties, adults, children, childcare_n, elders) {
     validate(
       need(length(counties) > 0, "Please select a location to see results."),
       need(length(counties) <= 3, "Please select no more than 3 locations."),
       need(childcare_n <= children, "Number of children in childcare cannot exceed the total number of children."),
-      # Added validation for zero-person household
       need(adults + children + elders > 0, "Please select at least one person for the family profile.")
     )
+    
     base_structure <- map_family_structure(adults, children, elders)
     childcare_structure <- if (childcare_n == 1) "1 Adult + 1 Child" else if (childcare_n >= 2) "2 Adults + 2 Children" else NA
     elder_structure <- if (elders == 1) "1 Adult: 65+" else if (elders >= 2) "2 Adults: 65+" else NA
     
     base_costs <- all_costs_long_for_table %>%
-      filter(Type == cost_type, County %in% counties, FamilyStructure == base_structure, !CostVariable %in% c("Childcare", "Elder Care"))
+      filter(Type == cost_type, County %in% counties, FamilyStructure == base_structure, 
+             !CostVariable %in% c("Childcare", "Elder Care", "Miscellaneous"))
     
     get_costs_for <- function(variable, structure) {
       if (!is.na(structure)) {
         all_costs_long_for_table %>% filter(Type == cost_type, County %in% counties, FamilyStructure == structure, CostVariable == variable)
       } else {
-        tibble(County = counties, CostVariable = variable, Cost = 0) %>% distinct()
+        tibble(County = counties, CostVariable = variable, Cost = 0, Type = cost_type, FamilyStructure = "N/A") %>% distinct()
       }
     }
     childcare_costs <- get_costs_for("Childcare", childcare_structure)
     elder_care_costs <- get_costs_for("Elder Care", elder_structure)
     
-    final_costs_long <- bind_rows(base_costs, childcare_costs, elder_care_costs) %>% select(County, CostVariable, Cost)
+    # Combine all primary costs
+    primary_costs <- bind_rows(base_costs, childcare_costs, elder_care_costs)
     
-    final_costs_long %>%
-      pivot_wider(names_from = County, values_from = Cost, values_fill = 0) %>%
+    # Calculate Miscellaneous based on the sum of primary costs for each county
+    misc_costs <- primary_costs %>%
+      group_by(County) %>%
+      summarise(Cost = sum(Cost, na.rm = TRUE) * 0.10, .groups = 'drop') %>%
+      mutate(CostVariable = "Miscellaneous")
+    
+    # Combine all costs including miscellaneous
+    final_costs_long <- bind_rows(primary_costs, misc_costs) %>% select(County, CostVariable, Cost)
+    
+    # Create a template to make sure all variables are in the final table
+    template <- expand.grid(CostVariable = cost_variables_list, County = counties, stringsAsFactors = FALSE)
+    
+    # Join calculated costs to the template
+    complete_costs <- left_join(template, final_costs_long, by = c("CostVariable", "County"))
+    
+    # Pivot to wide format, filling any missing values with 0
+    pivoted_costs <- complete_costs %>%
+      pivot_wider(names_from = County, values_from = Cost, values_fill = 0)
+    
+    pivoted_costs %>%
       mutate(CostVariable = factor(CostVariable, levels = cost_variables_list)) %>%
       arrange(CostVariable) %>%
       rename(` ` = CostVariable)
@@ -488,10 +524,18 @@ server <- function(input, output, session) {
   
   format_comparison_table <- function(df) {
     df_char <- df %>% mutate(` ` = as.character(` `))
-    totals <- df_char %>% summarise(across(where(is.numeric), sum, na.rm = TRUE))
-    monthly_total_row <- totals %>% mutate(` ` = "Monthly Total")
-    annual_total_row <- totals %>% mutate(across(where(is.numeric), ~ . * 12), ` ` = "Annual Total")
-    df_with_totals <- bind_rows(df_char, monthly_total_row, annual_total_row)
+    # Exclude Miscellaneous from the initial sum for the 'Monthly Total' to avoid double-counting
+    pre_total <- df_char %>% filter(` ` != "Miscellaneous")
+    totals <- pre_total %>% summarise(across(where(is.numeric), sum, na.rm = TRUE))
+    
+    # Now add back the miscellaneous row and calculate totals
+    misc_row <- df_char %>% filter(` ` == "Miscellaneous")
+    df_ordered <- df_char %>% filter(` ` != "Miscellaneous") %>% bind_rows(misc_row)
+    
+    monthly_total_row <- df_ordered %>% summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>% mutate(` ` = "Monthly Total")
+    annual_total_row <- monthly_total_row %>% mutate(across(where(is.numeric), ~ . * 12), ` ` = "Annual Total")
+    
+    df_with_totals <- bind_rows(df_ordered, monthly_total_row, annual_total_row)
     df_with_totals %>% mutate(across(where(is.numeric), ~case_when(is.na(.) ~ "N/A", . == 0 ~ "$0", TRUE ~ paste0("$", trimws(format(round(., 0), nsmall = 0, big.mark = ","))))))
   }
   
@@ -510,5 +554,3 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
-
-
