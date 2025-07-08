@@ -420,7 +420,7 @@ server <- function(input, output, session) {
     map_data <- min_map_data_filtered()
     validate(need(nrow(map_data) > 0 && any(!is.na(map_data$TotalCost)), "No data available for this selection."))
     pal <- colorQuantile(palette = viridis::viridis(5, direction = -1), domain = map_data$TotalCost, n = 5, na.color = "#bdbdbd")
-    leaflet(map_data) %>% addTiles() %>%
+    leaflet(map_data) %>% addProviderTiles("CartoDB.Positron") %>%
       addPolygons(fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.7,
                   popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Minimum Cost:</strong><br>$", format(round(TotalCost, 0), big.mark=",")),
                   label = ~NAME,
@@ -446,7 +446,7 @@ server <- function(input, output, session) {
     map_data <- avg_map_data_filtered()
     validate(need(nrow(map_data) > 0 && any(!is.na(map_data$TotalCost)), "No data available for this selection."))
     pal <- colorQuantile(palette = viridis::inferno(5, direction = -1), domain = map_data$TotalCost, n=5, na.color = "#bdbdbd")
-    leaflet(map_data) %>% addTiles() %>%
+    leaflet(map_data) %>% addProviderTiles("CartoDB.Positron") %>%
       addPolygons(fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.7,
                   popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Average Cost:</strong><br>$", format(round(TotalCost, 0), big.mark=",")),
                   label = ~NAME,
