@@ -205,7 +205,14 @@ ui <- fluidPage(
         margin-top: 15px;
         line-height: 1.4;
       }
-      .controls-info-box p { margin-bottom: 0; }
+      .controls-info-box p { margin-bottom: 10px; }
+      .controls-info-box p:last-child { margin-bottom: 0; }
+      
+      .final-note-text {
+        font-size: 16px;
+        color: #555;
+        line-height: 1.6;
+      }
       
     "))
   ),
@@ -289,7 +296,7 @@ ui <- fluidPage(
                          )
                        ),
                        
-                       div(class = "section-title", "Cost of Living Breakdown by Category"),
+                       div(class = "section-title", "Cost Breakdown Bar Chart"),
                        p("This graph shows the monthly minimum cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
                        fluidRow(
                          column(3,
@@ -315,15 +322,17 @@ ui <- fluidPage(
                                 numericInput("num_elders_min", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
                                 selectInput("compare_counties_min", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
                                 div(class = "controls-info-box",
-                                    p("Don’t see your exact family setup listed? No problem. You can use the controls above to build your own custom family profile - choose how many adults, children (including those in childcare), and elders are in your household. Then, select up to three counties or cities to compare."),
-                                    p("The table on the right will show a side-by-side comparison of the estimated minimum monthly costs for each location. This feature is especially helpful if you're planning to move or want to explore how costs vary across different parts of Virginia for your specific family situation."),
-                                    p("It gives you a personalized view of what it takes to cover basic living expenses in different areas, based on the closest available data.")
+                                    p("You can use the controls above to build your own custom family profile - choose how many adults, children (including those in childcare), and elders are in your household. Then, you can select up to three counties or cities to compare."),
+                                    p("The table shows a side-by-side comparison of the estimated minimum monthly costs for each location. This is especially helpful if you're planning to move or want to explore how costs vary across different parts of Virginia for your specific family situation.")
                                 )
                          ),
                          column(9,
                                 div(class = "table-container", tableOutput("custom_table_min"))
                          )
-                       )
+                       ),
+                       
+                       div(class = "section-title", "Understanding the Minimum Cost Estimates"),
+                       p(class = "final-note-text", "The minimum cost estimates presented on this page are designed to represent a 'survival' budget, which covers the most basic needs for a household to live and work in Virginia. This budget does not account for savings, emergencies, or non-essential spending that contributes to quality of life. As you explore this data, consider that households earning below this minimum threshold are likely facing significant financial hardship. This information is crucial for policymakers, non-profits, and community leaders when discussing topics like living wages, affordable housing, and the effectiveness of social support systems.")
                    )
           ),
           
@@ -362,7 +371,7 @@ ui <- fluidPage(
                          )
                        ),
                        
-                       div(class = "section-title", "Cost of Living Breakdown by Category"),
+                       div(class = "section-title", "Cost Breakdown Bar Chart"),
                        p("This graph shows the monthly average cost breakdown for a selected family structure and location. Use the dropdown menus below to customize the view."),
                        fluidRow(
                          column(3,
@@ -389,14 +398,16 @@ ui <- fluidPage(
                                 selectInput("compare_counties_avg", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
                                 div(class = "controls-info-box",
                                     p("Want to explore cost estimates for your exact family setup? Use the input boxes above to create a custom family profile, just select how many adults, children, elders, and kids in childcare are in your household. Then you can pick up to three Virginia counties or cities to compare. The table will update to show average monthly costs side by side for each place based on your custom family structure."),
-                                    p("These estimates reflect what a typical, modest lifestyle might cost in different regions. That means a bit more comfort and flexibility, such as better food choices, safer transportation, and some money set aside for entertainment or unexpected needs."),
-                                    p("This is a great tool for planning moves, budgeting for your specific household, or comparing living conditions in different communities across the state.")
+                                    p("These estimates reflect what a typical, modest lifestyle might cost in different regions. That means a bit more comfort and flexibility, such as better food choices, safer transportation, and some money set aside for entertainment or unexpected needs.")
                                 )
                          ),
                          column(9,
                                 div(class = "table-container", tableOutput("custom_table_avg"))
                          )
-                       )
+                       ),
+                       
+                       div(class = "section-title", "Understanding the Average Cost Estimates"),
+                       p(class = "final-note-text", "The average cost estimates on this page reflect a more typical, modestly comfortable standard of living. This budget goes beyond basic survival to include items that allow families to participate more fully in their communities, such as modest entertainment, occasional meals out, and adequate savings for emergencies or future goals. While not a measure of wealth, this data provides a more realistic picture of what a financially stable household might spend to maintain a decent quality of life in Virginia. It's a valuable benchmark for individuals, employers, and policymakers aiming to understand the costs associated with economic security.")
                    )
           ),
           
