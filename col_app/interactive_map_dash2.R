@@ -263,7 +263,9 @@ ui <- fluidPage(
                          column(3,
                                 selectInput("county_min_table", "Select County or City for Table:", choices = virginia_county_names, selected = virginia_county_names[1], width = "100%"),
                                 div(class = "controls-info-box",
-                                    p("Use the dropdown menu above to select a county or city in Virginia. Once selected, the table will show a full breakdown of the minimum monthly costs for that area based on six different common family structures (like a single adult, a family with two children, or elderly adults). This table reflects a 'survival budget' - the absolute minimum needed to cover essential living expenses such as housing, food, transportation, and healthcare. These estimates do not include extra spending, savings, or luxuries - only what's needed to get by. You can use this to understand how much it might cost just to meet basic needs in different counties, depending on your household setup.")
+                                    p("Use the dropdown menu above to select a county or city in Virginia. Once selected, the table will show a full breakdown of the minimum monthly costs for that area based on six different common family structures (like a single adult, a family with two children, or elderly adults)."),
+                                    p("This table reflects a 'survival budget' - the absolute minimum needed to cover essential living expenses such as housing, food, transportation, and healthcare. These estimates do not include extra spending, savings, or luxuries - only what's needed to get by."),
+                                    p(" You can use this to understand how much it might cost just to meet basic needs in different counties, depending on your household setup.")
                                 )
                          ),
                          column(9,
@@ -277,7 +279,9 @@ ui <- fluidPage(
                          column(3,
                                 selectInput("family_structure_map_min", "Select Family Structure for Map:", choices = family_structures_list, selected = family_structures_list[4], width = "100%"),
                                 div(class = "controls-info-box",
-                                    p("This interactive map helps you visualize the total minimum monthly cost of living across all counties and independent cities in Virginia. First, use the dropdown menu to select a family type. Then, the map will automatically update to show how much it costs for that family to cover essential needs in each area. Darker colors usually mean higher costs. You can hover over any county to see its name and cost, or click on it for more information. This map gives a quick and powerful overview of how the basic cost of living changes across the state, which can help with comparing locations or planning where to live.")
+                                    p("This interactive map helps you visualize the total minimum monthly cost of living across all counties and independent cities in Virginia."),
+                                    p("First, use the dropdown menu to select a family type. Then, the map will automatically update to show how much it costs for that family to cover essential needs in each area. Darker colors usually mean higher costs. You can hover over any county to see its name and cost, or click on it for more information."),
+                                    p("This map gives a quick and powerful overview of how the basic cost of living changes across the state, which can help with comparing locations or planning where to live.")
                                 )
                          ),
                          column(9,
@@ -292,7 +296,8 @@ ui <- fluidPage(
                                 selectInput("county_min_plot", "Select County or City for Graph:", choices = virginia_county_names, selected = virginia_county_names[1], width = "100%"),
                                 selectInput("family_structure_min", "Select Family Structure:", choices = family_structures_list, selected = family_structures_list[4], width = "100%"),
                                 div(class = "controls-info-box",
-                                    p("This chart shows the breakdown of monthly minimum costs by category - like housing, food, taxes, and healthcare - for one specific family type in one location. To use this graph, choose a county or city and a family structure using the dropdown menus above. The chart will update instantly to show you how much each category contributes to the total cost. This is useful if you want to understand which expenses are the biggest drivers of basic living costs in a specific area. For example, in some places, housing may be the biggest cost, while in others, it could be healthcare or transportation. Use this chart to better understand how your basic monthly budget might look, and to spot which categories need the most attention when planning expenses.")
+                                    p("This chart shows the breakdown of monthly minimum costs by category - like housing, food, taxes, and healthcare - for one specific family type in one location. To use this graph, choose a county or city and a family structure using the dropdown menus above. The chart will update instantly to show you how much each category contributes to the total cost."),
+                                    p("This is useful if you want to understand which expenses are the biggest drivers of basic living costs in a specific area. For example, in some places, housing may be the biggest cost, while in others, it could be healthcare or transportation. Use this chart to better understand how your basic monthly budget might look, and to spot which categories need the most attention when planning expenses.")
                                 )
                          ),
                          column(9,
@@ -310,7 +315,9 @@ ui <- fluidPage(
                                 numericInput("num_elders_min", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
                                 selectInput("compare_counties_min", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
                                 div(class = "controls-info-box",
-                                    p("Don’t see your exact family setup listed? No problem. You can use the controls above to build your own custom family profile - choose how many adults, children (including those in childcare), and elders are in your household. Then, select up to three counties or cities to compare. The table on the right will show a side-by-side comparison of the estimated minimum monthly costs for each location. This feature is especially helpful if you're planning to move or want to explore how costs vary across different parts of Virginia for your specific family situation. It gives you a personalized view of what it takes to cover basic living expenses in different areas, based on the closest available data.")
+                                    p("Don’t see your exact family setup listed? No problem. You can use the controls above to build your own custom family profile - choose how many adults, children (including those in childcare), and elders are in your household. Then, select up to three counties or cities to compare."),
+                                    p("The table on the right will show a side-by-side comparison of the estimated minimum monthly costs for each location. This feature is especially helpful if you're planning to move or want to explore how costs vary across different parts of Virginia for your specific family situation."),
+                                    p("It gives you a personalized view of what it takes to cover basic living expenses in different areas, based on the closest available data.")
                                 )
                          ),
                          column(9,
@@ -382,7 +389,8 @@ ui <- fluidPage(
                                 selectInput("compare_counties_avg", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
                                 div(class = "controls-info-box",
                                     p("Want to explore cost estimates for your exact family setup? Use the input boxes above to create a custom family profile, just select how many adults, children, elders, and kids in childcare are in your household. Then you can pick up to three Virginia counties or cities to compare. The table will update to show average monthly costs side by side for each place based on your custom family structure."),
-                                    p("These estimates reflect what a typical, modest lifestyle might cost in different regions. That means a bit more comfort and flexibility, such as better food choices, safer transportation, and some money set aside for entertainment or unexpected needs. This tool is perfect for planning moves, budgeting for your specific household, or comparing living conditions in different communities across the state.")
+                                    p("These estimates reflect what a typical, modest lifestyle might cost in different regions. That means a bit more comfort and flexibility, such as better food choices, safer transportation, and some money set aside for entertainment or unexpected needs."),
+                                    p("This is a great tool for planning moves, budgeting for your specific household, or comparing living conditions in different communities across the state.")
                                 )
                          ),
                          column(9,
