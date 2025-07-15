@@ -362,7 +362,7 @@ ui <- fluidPage(
                          column(3,
                                 selectInput("family_structure_map_avg", "Select Family Structure for Map:", choices = family_structures_list, selected = family_structures_list[4], width = "100%"),
                                 div(class = "controls-info-box",
-                                    p("This interactive map lets you see how the average monthly cost of living changes from one Virginia county or city to another. To use this map, select a family structure from the dropdown menu. The map will then update to show how much, on average, it costs families of that type to live in each area."),
+                                    p("This interactive map lets you see how the average monthly cost of living changes from one Virginia county or city to another. To use this map, select a family structure from the dropdown menu. The map will then update to show how much, on average, it costs for families of that type to live in each area."),
                                     p("The color shading helps you quickly see which areas are more or less expensive. Darker areas usually mean higher costs. You can also hover over or click on a county to see its name and total average monthly cost. This map is useful for comparing lifestyles across the state. It can help you decide where to live, plan budgets, or better understand regional cost differences in day-to-day living.")
                                 )
                          ),
@@ -514,31 +514,65 @@ server <- function(input, output, session) {
     map_data <- min_map_data_filtered()
     validate(need(nrow(map_data) > 0 && any(!is.na(map_data$TotalCost) & is.finite(map_data$TotalCost)), "No data available for this selection."))
     
+    popup_content <- sapply(map_data$NAME, function(county_name) {
+      req(input$family_structure_map_min)
+      
+      # Filter data for the specific county, family structure, and type.
+      county_data <- all_costs_long_for_table %>%
+        filter(
+          County == county_name,
+          FamilyStructure == input$family_structure_map_min,
+          Type == "min"
+        )
+      
+      # Create a complete, ordered data frame for all cost variables.
+      # By adding this we make sure that all categories are present, NAs are handled, and order is maintained.
+      popup_df <- tibble(CostVariable = cost_variables_list) %>%
+        left_join(county_data %>% select(CostVariable, Cost), by = "CostVariable") %>%
+        mutate(Cost = replace_na(Cost, 0))
+      
+      # Calculate total cost and percentage contribution for each category.
+      total_cost <- sum(popup_df$Cost)
+      popup_df <- popup_df %>%
+        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0)
+      
+      # Format each line for the popup
+      breakdown_lines <- sprintf(
+        "%s: $%s (%s%%)",
+        popup_df$CostVariable,
+        format(round(popup_df$Cost), nsmall = 0, big.mark = ","),
+        round(popup_df$Percentage)
+      )
+      
+      # Assemble the final HTML content for the popup.
+      breakdown_html <- paste0(
+        "<strong>County: </strong>", htmltools::htmlEscape(county_name), "<br><br>",
+        paste(breakdown_lines, collapse = "<br>"),
+        "<br><br><strong>Total Monthly Cost (minimum):</strong> $",
+        format(round(total_cost), nsmall = 0, big.mark = ",")
+      )
+      
+      return(breakdown_html)
+    }, USE.NAMES = FALSE)
+    
     costs <- map_data$TotalCost[is.finite(map_data$TotalCost)]
     bins <- unique(quantile(costs, probs = seq(0, 1, length.out = 6), na.rm = TRUE))
-    
-    # Round bins to the nearest thousand for a cleaner legend
     bins <- unique(round(bins, -3))
-    
     if (length(bins) < 2) {
       bins <- c(min(costs, na.rm = TRUE), max(costs, na.rm = TRUE))
     }
+    pal <- colorBin(palette = "plasma", domain = map_data$TotalCost, bins = bins, na.color = "#bdbdbd", reverse = TRUE)
     
-    pal <- colorBin(
-      palette = "plasma",
-      domain = map_data$TotalCost,
-      bins = bins,
-      na.color = "#bdbdbd"
-    )
-    
-    leaflet(map_data) %>% 
+    leaflet(map_data) %>%
       addProviderTiles("CartoDB.Positron") %>%
       setView(lng = -79.0, lat = 37.5, zoom = 7) %>%
-      addPolygons(fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.8,
-                  popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Minimum Cost:</strong><br>$", format(round(TotalCost, 0), big.mark=",")),
-                  label = ~NAME,
-                  labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto"),
-                  highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
+      addPolygons(
+        fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.8,
+        popup = popup_content,
+        label = ~NAME,
+        labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto"),
+        highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
+      ) %>%
       addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data", opacity = 1)
   })
   
@@ -560,36 +594,70 @@ server <- function(input, output, session) {
     map_data <- avg_map_data_filtered()
     validate(need(nrow(map_data) > 0 && any(!is.na(map_data$TotalCost) & is.finite(map_data$TotalCost)), "No data available for this selection."))
     
+    popup_content <- sapply(map_data$NAME, function(county_name) {
+      req(input$family_structure_map_avg)
+      
+      # Filter data for the specific county, family structure, and type.
+      county_data <- all_costs_long_for_table %>%
+        filter(
+          County == county_name,
+          FamilyStructure == input$family_structure_map_avg,
+          Type == "avg"
+        )
+      
+      # Create a complete, ordered data frame for all cost variables.
+      
+      popup_df <- tibble(CostVariable = cost_variables_list) %>%
+        left_join(county_data %>% select(CostVariable, Cost), by = "CostVariable") %>%
+        mutate(Cost = replace_na(Cost, 0))
+      
+      # Calculate total cost and percentage contribution for each category.
+      total_cost <- sum(popup_df$Cost)
+      popup_df <- popup_df %>%
+        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0)
+      
+      # Format each line for the popup
+      breakdown_lines <- sprintf(
+        "%s: $%s (%s%%)",
+        popup_df$CostVariable,
+        format(round(popup_df$Cost), nsmall = 0, big.mark = ","),
+        round(popup_df$Percentage)
+      )
+      
+      # Assemble the final HTML content for the popup.
+      breakdown_html <- paste0(
+        "<strong>County: </strong>", htmltools::htmlEscape(county_name), "<br><br>",
+        paste(breakdown_lines, collapse = "<br>"),
+        "<br><br><strong>Total Monthly Cost (average):</strong> $",
+        format(round(total_cost), nsmall = 0, big.mark = ",")
+      )
+      
+      return(breakdown_html)
+    }, USE.NAMES = FALSE)
+    
     costs <- map_data$TotalCost[is.finite(map_data$TotalCost)]
     bins <- unique(quantile(costs, probs = seq(0, 1, length.out = 6), na.rm = TRUE))
-    
-    # Round bins to the nearest thousand for a cleaner legend
     bins <- unique(round(bins, -3))
-    
     if (length(bins) < 2) {
       bins <- c(min(costs, na.rm = TRUE), max(costs, na.rm = TRUE))
     }
+    pal <- colorBin(palette = "viridis", domain = map_data$TotalCost, bins = bins, na.color = "#bdbdbd", reverse = TRUE)
     
-    pal <- colorBin(
-      palette = "viridis", # Use a different viridis palette for the average map
-      domain = map_data$TotalCost,
-      bins = bins,
-      na.color = "#bdbdbd"
-    )
-    
-    leaflet(map_data) %>% 
+    leaflet(map_data) %>%
       addProviderTiles("CartoDB.Positron") %>%
       setView(lng = -79.0, lat = 37.5, zoom = 7) %>%
-      addPolygons(fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.8,
-                  popup = ~paste0("<div class='map-popup-title'>", NAME, "</div><div class='map-popup-value'><strong>Total Average Cost:</strong><br>$", format(round(TotalCost, 0), big.mark=",")),
-                  label = ~NAME,
-                  labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto"),
-                  highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
+      addPolygons(
+        fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.8,
+        popup = popup_content,
+        label = ~NAME,
+        labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto"),
+        highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
+      ) %>%
       addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data", opacity = 1)
   })
   
   
-  # --- New Server Logic for Custom Comparison ---
+  # --- The Server Logic for Custom Comparison ---
   
   map_family_structure <- function(adults, children, elders) {
     if (elders > 0) {
@@ -678,3 +746,6 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
+
+
+
