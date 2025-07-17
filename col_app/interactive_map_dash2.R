@@ -231,8 +231,7 @@ ui <- fluidPage(
                            p("The Virginia Cost of Living Dashboard was created as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in 2025. This tool helps individuals, policymakers, and researchers explore how the cost of living varies across Virginia’s 133 counties and independent cities."),
                            
                            p("It includes two views: the minimum cost of living (a basic survival budget) and the average cost of living (a more typical monthly budget). Users can view breakdowns by family structure and customize scenarios to see how costs differ from one place to another."),
-                           
-                           p(strong("Important Note:"), " All values in this dashboard are ", strong("nominal"), " and represent the cost of living in ", strong("2023"), ". The estimates are ", strong("not seasonally adjusted"), ", meaning they reflect the average for the year rather than short-term fluctuations."),
+                           p(strong("Important Note:"), " All values in this dashboard are ", strong("nominal"), " and represent the cost of living in ", strong("2023"), ". The estimates are ", strong("not seasonally adjusted"), " and this means that they reflect the average for the year rather than short-term fluctuations."),
                            
                            div(class = "section-title", "Why This Matters"),
                            tags$ul(
@@ -243,7 +242,7 @@ ui <- fluidPage(
                            ),
                            
                            div(class = "section-title", "Minimum vs. Average Costs"),
-                           p("We report both 'Minimum Cost' and 'Average Cost' estimates. The Minimum Cost reflects a no-frills survival budget — the lowest amount needed to cover basic needs. The Average Cost includes a more typical level of spending based on how people actually live, allowing for some discretionary items and comfort."),
+                           p("We report both 'Minimum Cost' and 'Average Cost' estimates. The Minimum Cost reflects a no-frills survival budget - the lowest amount needed to cover basic needs. The Average Cost includes a more typical level of spending based on how people actually live, allowing for some discretionary items and comfort."),
                            
                            p("Both perspectives are important. The minimum cost can highlight where people are most economically vulnerable, while the average cost shows what’s needed for a modest, stable life."),
                            
@@ -252,14 +251,14 @@ ui <- fluidPage(
                            
                            div(class = "section-title", "How to Use This Tool"),
                            tags$ol(
-                             tags$li("Start with this page to understand the goals and features of the dashboard."),
+                             tags$li("Start with this page to understand the goals and features of the dashboard. This page gives you an overview of what this project is about and its purpose."),
                              tags$li("Go to the 'Minimum Cost' or 'Average Cost' tabs to explore data for different counties and family types. (More instructions are provided on each page.) "),
-                             tags$li("Use the dropdown menus and maps to see how costs vary by location and household structure."),
-                             tags$li("Compare multiple counties side-by-side or build custom family profiles to see tailored results.")
+                             tags$li("Use the dropdown menus and maps to see how costs vary by location and household structure. The colors on the maps are intenationally used to represent the least expensive (light colors) and the more expensive regions (darker colors) in Virginia."),
+                             tags$li("At the end of the minimum and the average cost tabs, you can compare multiple counties side-by-side or build custom family profiles to see tailored results for your own family size.")
                            ),
                            
-                           div(class = "section-title", "Who Made This"),
-                           p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone.")
+                           div(class = "section-title", "Acknowledgement"),
+                           p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone. A huge thanks to Dr. Cary, our faculty advisor, and Renu Ojha, our graduate student advisor.")
                        )
                    )
           ),
@@ -418,8 +417,9 @@ ui <- fluidPage(
           tabPanel("Methodology",
                    div(class = "content-container",
                        div(class = "methodology-section",
+                           withMathJax(),
                            div(class = "section-title", "Methodology Overview"),
-                           p("Our methodology estimates the monthly cost of living across Virginia's 133 counties and independent cities using the data sources from 2023. We compiled data from authoritative national and state-level sources for nine essential cost categories. For each category, we developed both a 'Minimum Cost' and an 'Average Cost' estimate to represent a basic survival budget versus a more typical, stable living standard. Costs were then tailored to six common family structures to reflect how expenses change with household size and composition. Methodologies that rely on proxies (The Healthcare and Elder Care data), such as scaling by local income, do so because direct, county-level data for that specific cost is unavailable. This approach allows for consistent and reasonable estimates across all localities."),
+                           p("Our methodology estimates the monthly cost of living across Virginia's 133 counties and independent cities using the data sources from 2023. We compiled data from authoritative national and state-level sources for nine essential cost categories (housing, food, transportation, taxes, healthcare, childcare, elder care, technology, and Miscellaneuos). For each category, we developed both a 'Minimum Cost' and an 'Average Cost' estimate to represent a basic survival budget versus a more typical, stable living standard. Costs were then tailored to six common family structures (1 Adult 19-50 years, 2 Adults 19-50 years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adult 65+, and 2 Adults 65+) to reflect how expenses change with household size and composition. Methodologies that rely on proxies (The Healthcare and Elder Care data), such as scaling by local income, do so because direct, county-level data for that specific cost is unavailable. This approach allows for consistent and reasonable estimates across all localities."),
                            
                            div(class = "section-title", "Our Variables"),
                            
@@ -427,29 +427,23 @@ ui <- fluidPage(
                                h4(strong("Housing & Utilities")),
                                p("Housing costs were estimated using the 2023 Fair Market Rent (FMR) data from the U.S. Department of Housing and Urban Development (HUD). FMRs represent the 40th percentile of gross rents for a modest housing unit in a specific locality and importantly, they already include the cost of basic utilities like electricity, water, and heat. We assigned apartment sizes based on family type (e.g., 1-bedroom for single adults, 3-bedroom for a family of four)."),
                                p("Minimum Cost was set at 110% of the FMR. The 10% buffer accounts for potential utility costs that may exceed HUD's standard allowance, ensuring a realistic survival budget. And the Average Cost was set at 125% of the FMR. This multiplier provides a more typical market-rate rent, reflecting what households not receiving subsidies might pay for slightly better housing."),
-                               
-                               withMathJax(),
-                               helpText("$$\\text{Minimum Housing Cost} = \\text{FMR} \\times 1.10$$"),
-                               helpText("$$\\text{Average Housing Cost} = \\text{FMR} \\times 1.25$$")
-                               
+                               p("$$\\text{Minimum Housing Cost} = \\text{FMR} \\times 1.10$$"),
+                               p("$$\\text{Average Housing Cost} = \\text{FMR} \\times 1.25$$")
                            ),
+                           
                            
                            div(class = "about-variable-item",
                                h4(strong("Food")),
                                p("Food costs are based on the U.S. Department of Agriculture's (USDA) official Food Plans, which provide cost estimates for a healthy diet at different budget levels. We calculated the per-person monthly cost and multiplied it by the number of individuals in each family structure."),
                                p("Minimum Cost uses the USDA's 'Thrifty Food Plan.' This plan represents the bare minimum cost for a nutritionally adequate diet and is the basis for the federal SNAP (food stamp) program. And the Average Cost uses the USDA's 'Moderate-Cost Food Plan,' which allows for a wider variety of foods and represents a more realistic budget for a typical middle-class household."),
-                               
-                               withMathJax(),
-                               helpText("$$\\text{Total Food Cost} = \\text{Per Person Cost} \\times \\text{Household Size}$$")
+                               p("$$\\text{Total Food Cost} = \\text{Per Person Cost} \\times \\text{Household Size}$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Transportation")),
                                p("Transportation costs were estimated using a weighted model that combines vehicle and public transit expenses at the county level. We used data from the U.S. Census Bureau (ACS) to determine the share of workers who drive versus use public transit in each county. A base cost was calculated using AAA's national average for vehicle ownership, scaled by local vehicle availability, and combined with local transit pass prices."),
                                p("This county-level base cost was then adjusted using multipliers to reflect the different travel needs of each family structure (e.g., two-adult households have double the cost of one-adult households, while seniors have reduced costs). The Minimum Cost is set at 85% of this final value to reflect more conservative travel behavior, while the Average Cost is 100%."),
-                               
-                               withMathJax(),
-                               helpText("$$\\text{Minimum Transportation Cost} = \\text{Average Cost} \\times 0.85$$")
+                               p("$$\\text{Minimum Transportation Cost} = \\text{Average Cost} \\times 0.85$$")
                            ),
                            
                            
@@ -458,34 +452,33 @@ ui <- fluidPage(
                                p("Tax estimates include federal and state income taxes, federal payroll taxes (Social Security and Medicare), and considerations for tax credits. The calculation begins by estimating the annual income for each family structure based on county-level wage data from the U.S. Census Bureau (ACS)."),
                                p("Average Cost is calculated directly from this average income using 2023 tax brackets, standard deductions, and applicable credits like the Child Tax Credit and Dependent Care Credit."),
                                p("Minimum Cost is an approximation derived by scaling down the average tax burden. We calculated a ratio of the minimum survival income to the average income for a given family and applied this ratio to the average tax amount, providing a reasonable estimate for taxes at a lower income level."), 
-                               withMathJax(),
-                               helpText("$$\\text{Minimum Tax} = \\text{Average Tax} \\times \\left( \\frac{\\text{Minimum Income}}{\\text{Average Income}} \\right)$$")
+                               p("$$\\text{Minimum Tax} = \\text{Average Tax} \\times \\left( \\frac{\\text{Minimum Income}}{\\text{Average Income}} \\right)$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Healthcare")),
                                p("Since direct county-level healthcare cost data is unavailable, we used an indirect estimation method. We started with state-level baseline annual costs for a household, derived from data published by KFF and the Centers for Medicare & Medicaid Services (CMS). These base costs were then scaled for each county using a ratio of the county's median household income to Virginia's statewide median income (both from the ACS). This common economic practice assumes that healthcare costs tend to be higher in areas with higher incomes."),
                                p("Finally, these county-scaled costs were adjusted using multipliers for each family structure to account for different healthcare needs based on age and household size (e.g., families with children have higher costs). These multipliers were adapted from models like the MIT Living Wage Calculator. The Minimum Cost and Average Cost scenarios are based on different starting baseline figures to reflect lower- and higher-cost health plans, respectively."), 
-                               withMathJax(),
-                               helpText("$$\\text{County Healthcare Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
-                               helpText("$$\\text{Final Healthcare Cost} = \\text{County Cost} \\times \\text{Multiplier}_{\\text{family}}$$")
+                               
+                               p("$$\\text{County Healthcare Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
+                               p("$$\\text{Final Healthcare Cost} = \\text{County Cost} \\times \\text{Multiplier}_{\\text{family}}$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Childcare")),
                                p("Childcare costs were calculated using county-level 2024 price data from the National Database of Childcare Prices (NDCP). This dataset provides annual minimum and general (average) prices for both home-based and center-based care across different child age groups (infant, toddler, etc.). For each county, we first calculated an average cost across all age groups for both home-based and center-based care, and then averaged these two values together to get a single 'combined' cost for the county."),
                                p("This annual figure was converted to a monthly cost. For families with children, this per-child cost was multiplied by the number of children in the household (e.g., twice the cost for a two-child family). For households with no children, the childcare cost is zero."), 
-                               withMathJax(),
-                               helpText("$$\\text{Monthly Childcare Cost} = \\left( \\frac{\\text{Annual Cost}}{12} \\right) \\times \\text{Number of Children}$$")
+                               
+                               p("$$\\text{Monthly Childcare Cost} = \\left( \\frac{\\text{Annual Cost}}{12} \\right) \\times \\text{Number of Children}$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Technology")),
                                p("Technology costs are defined as one broadband internet connection per household plus one smartphone plan per adult. Costs are based on national benchmarks and are assumed to be uniform across all Virginia counties, as local data is not available."),
                                p("Minimum Cost uses baseline costs of $77/month for internet and $15/month per adult for a smartphone plan. And the Average Cost uses higher benchmarks of $81/month for internet and $64.50/month per adult for a smartphone plan. Households with no adults have a technology cost of zero."), 
-                               withMathJax(),
-                               helpText("$$\\text{Minimum Technology Cost} = 77 + (15 \\times \\text{Number of Adults})$$"),
-                               helpText("$$\\text{Average Technology Cost} = 81 + (64.5 \\times \\text{Number of Adults})$$")
+                               
+                               p("$$\\text{Minimum Technology Cost} = 77 + (15 \\times \\text{Number of Adults})$$"),
+                               p("$$\\text{Average Technology Cost} = 81 + (64.5 \\times \\text{Number of Adults})$$")
                            ),
                            
                            div(class = "about-variable-item",
@@ -493,23 +486,23 @@ ui <- fluidPage(
                                p("Elder care costs are estimated for the '1 Adult: 65+' and '2 Adults: 65+' family structures using an income-scaling method similar to healthcare. We used Virginia-specific monthly median costs from the Genworth 2024 Cost of Care Survey as our baseline."),
                                p("Minimum Cost is based on the median cost of Adult Day Health Care ($1,766/month). And Average Cost is based on the median cost of an Assisted Living Facility ($6,512/month)."),
                                p("These state-level base costs were then scaled for each county using the ratio of local to state median household income. The cost for a two-elder household was set at 1.8 times the single-elder cost to account for shared expenses."), 
-                               withMathJax(),
-                               helpText("$$\\text{County Elder Care Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
-                               helpText("$$\\text{Two-Elder Cost} = \\text{Single Elder Cost} \\times 1.8$$")
+                               
+                               p("$$\\text{County Elder Care Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
+                               p("$$\\text{Two-Elder Cost} = \\text{Single Elder Cost} \\times 1.8$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Miscellaneous")),
                                p("The miscellaneous category covers a range of other essential but non-itemized expenses, such as clothing, personal care products, and household supplies. Following a common budgeting principle, this cost is estimated as 10% of the total monthly budget, excluding taxes. It provides a buffer for minor, unpredictable expenses that are a normal part of life."), 
-                               withMathJax(),
-                               helpText("$$\\text{Miscellaneous Cost} = 0.10 \\times (\\text{Total Monthly Cost} - \\text{Taxes})$$")
+                               
+                               p("$$\\text{Miscellaneous Cost} = 0.10 \\times (\\text{Total Monthly Cost} - \\text{Taxes})$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Hourly Wage")),
                                p("The hourly wage is not shown in the table, but we used it for the taxes calculation. It represents the pre-tax hourly wage a household's earner(s) must make to cover the total monthly cost of living. It is calculated by taking the 'Annual Total' cost for a given family structure and dividing it by 2,080 (the standard number of work hours in a year, based on a 40-hour work week)."), 
-                               withMathJax(),
-                               helpText("$$\\text{Hourly Wage} = \\frac{\\text{Annual Total Cost}}{2,080}$$")
+                               
+                               p("$$\\text{Hourly Wage} = \\frac{\\text{Annual Total Cost}}{2,080}$$")
                            ),
                            
                            
