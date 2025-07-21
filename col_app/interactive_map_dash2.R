@@ -143,7 +143,8 @@ total_costs_for_map <- all_costs_long_for_table %>%
 va_map_data_full <- left_join(va_counties, total_costs_for_map, by = "NAME")
 
 
-# --- UI Definition ---
+# --------- UI Definition ----------------
+
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -213,6 +214,16 @@ ui <- fluidPage(
         line-height: 1.6;
       }
       
+    .comparison-summary-box {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f0f7f7;
+      border-left: 5px solid #21908C;
+      border-radius: 5px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+      
     "))
   ),
   
@@ -279,6 +290,7 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
+                                uiOutput("min_table_title"), # This line is new
                                 div(class = "table-container", tableOutput("min_table"))
                          )
                        ),
@@ -319,8 +331,8 @@ ui <- fluidPage(
                        p(class = "section-desc", "Build a custom family profile and select up to 3 locations to compare estimated costs. Note: This is an estimate based on the closest available data profile."),
                        fluidRow(
                          column(3,
-                                numericInput("num_adults_min", "Number of Adults (19-50):", 0, min = 0, max = 3, width = "100%"),
-                                numericInput("num_children_min", "Number of Children:", 0, min = 0, max = 4, width = "100%"),
+                                numericInput("num_adults_min", "Number of Adults (19-50):", 1, min = 0, max = 3, width = "100%"),
+                                numericInput("num_children_min", "Number of Children:", 1, min = 0, max = 4, width = "100%"),
                                 numericInput("num_childcare_min", "Children in Childcare:", 0, min = 0, max = 4, width = "100%"),
                                 numericInput("num_elders_min", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
                                 selectInput("compare_counties_min", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
@@ -330,7 +342,8 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
-                                div(class = "table-container", tableOutput("custom_table_min"))
+                                div(class = "table-container", tableOutput("custom_table_min")),
+                                uiOutput("comparison_summary_min")
                          )
                        ),
                        
@@ -355,6 +368,7 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
+                                uiOutput("avg_table_title"), # This line is new
                                 div(class = "table-container", tableOutput("avg_table"))
                          )
                        ),
@@ -394,8 +408,8 @@ ui <- fluidPage(
                        p(class = "section-desc", "Build a custom family profile and select up to 3 locations to compare estimated costs. Note: This is an estimate based on the closest available data profile."),
                        fluidRow(
                          column(3,
-                                numericInput("num_adults_avg", "Number of Adults (19-50):", 0, min = 0, max = 3, width = "100%"),
-                                numericInput("num_children_avg", "Number of Children:", 0, min = 0, max = 4, width = "100%"),
+                                numericInput("num_adults_avg", "Number of Adults (19-50):", 1, min = 0, max = 3, width = "100%"),
+                                numericInput("num_children_avg", "Number of Children:", 1, min = 0, max = 4, width = "100%"),
                                 numericInput("num_childcare_avg", "Children in Childcare:", 0, min = 0, max = 4, width = "100%"),
                                 numericInput("num_elders_avg", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
                                 selectInput("compare_counties_avg", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
@@ -405,7 +419,8 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
-                                div(class = "table-container", tableOutput("custom_table_avg"))
+                                div(class = "table-container", tableOutput("custom_table_avg")),
+                                uiOutput("comparison_summary_avg")
                          )
                        ),
                        
@@ -413,6 +428,8 @@ ui <- fluidPage(
                        p(class = "final-note-text", "The average cost estimates on this page reflect a more typical, modestly comfortable standard of living. This budget goes beyond basic survival to include items that allow families to participate more fully in their communities, such as modest entertainment, occasional meals out, and adequate savings for emergencies or future goals. While not a measure of wealth, this data provides a more realistic picture of what a financially stable household might spend to maintain a decent quality of life in Virginia. It's a valuable benchmark for individuals, employers, and policymakers aiming to understand the costs associated with economic security.")
                    )
           ),
+          
+          #-------------------------------Methodology---------------------------------------  
           
           tabPanel("Methodology",
                    div(class = "content-container",
@@ -533,6 +550,7 @@ ui <- fluidPage(
                        )
                    )
           ),
+          #-------------------------------Results-----------------------------------------
           
           tabPanel("Results",
                    div(class = "content-container",
@@ -552,7 +570,9 @@ ui <- fluidPage(
   )
 )
 
-# --- Server Logic ---
+
+# --- Server Logic ---------------------------------
+
 server <- function(input, output, session) {
   
   min_cost_data_for_table_filtered <- reactive({ req(input$county_min_table); all_costs_long_for_table %>% filter(County == input$county_min_table, Type == "min") })
@@ -585,18 +605,43 @@ server <- function(input, output, session) {
   output$min_table <- renderTable({ generate_table_display(min_cost_data_for_table_filtered()) %>% format_cost_table() }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   output$avg_table <- renderTable({ generate_table_display(avg_cost_data_for_table_filtered()) %>% format_cost_table() }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
+  # Render the dynamic title for the minimum cost table
+  output$min_table_title <- renderUI({
+    req(input$county_min_table)
+    tags$h4(style = "font-weight: bold; color: var(--title-color); text-align: center; font-size: 20px;", 
+            paste("Household Minimum Monthly Cost:", input$county_min_table, "County, Virginia")
+    )
+  })
+  
+  # Render the dynamic title for the average cost table
+  output$avg_table_title <- renderUI({
+    req(input$county_avg_table)
+    tags$h4(style = "font-weight: bold; color: var(--title-color); text-align: center; font-size: 20px;", 
+            paste("Household Average Monthly Cost:", input$county_avg_table, "County, Virginia")
+    )
+  })
+  
   output$min_plot <- renderPlotly({
     req(input$county_min_plot, input$family_structure_min)
-    plot_data <- all_costs_long_for_table %>% filter(County == input$county_min_plot, Type == "min", FamilyStructure == input$family_structure_min)
+    plot_data <- all_costs_long_for_table %>%
+      filter(
+        County == input$county_min_plot,
+        Type == "min",
+        FamilyStructure == input$family_structure_min,
+        Cost > 0  # Hide bars where the cost is $0
+      )
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
+    
+    # Convert CostVariable to a factor to maintain order and drop unused levels
+    plot_data$CostVariable <- factor(plot_data$CostVariable, levels = cost_variables_list)
+    
     p <- ggplot(plot_data, aes(x = CostVariable, y = Cost, text = paste0(CostVariable, ": $", format(round(Cost, 0), nsmall = 0, big.mark = ",")))) +
       geom_col(aes(fill = CostVariable), width = 0.9) +
       scale_fill_viridis_d(option = "cividis", guide = "none") +
-      scale_x_discrete(limits = cost_variables_list) +
       labs(title = paste("Minimum Monthly Cost Breakdown for", input$family_structure_min, "in", input$county_min_plot), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
-    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
     
+    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
   })
   
   output$min_map <- renderLeaflet({
@@ -614,16 +659,15 @@ server <- function(input, output, session) {
           Type == "min"
         )
       
-      # Create a complete, ordered data frame for all cost variables.
-      # By adding this we make sure that all categories are present, NAs are handled, and order is maintained.
-      popup_df <- tibble(CostVariable = cost_variables_list) %>%
-        left_join(county_data %>% select(CostVariable, Cost), by = "CostVariable") %>%
-        mutate(Cost = replace_na(Cost, 0))
+      # Calculate total cost before filtering
+      total_cost <- sum(county_data$Cost, na.rm = TRUE)
       
-      # Calculate total cost and percentage contribution for each category.
-      total_cost <- sum(popup_df$Cost)
-      popup_df <- popup_df %>%
-        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0)
+      # Prepare data for popup, removing any zero-cost items
+      popup_df <- county_data %>%
+        filter(Cost > 0) %>%
+        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0) %>%
+        mutate(CostVariable = factor(CostVariable, levels = cost_variables_list)) %>%
+        arrange(CostVariable)
       
       # Format each line for the popup
       breakdown_lines <- sprintf(
@@ -665,18 +709,28 @@ server <- function(input, output, session) {
       addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data", opacity = 1)
   })
   
+  
   output$avg_plot <- renderPlotly({
     req(input$county_avg_plot, input$family_structure_avg)
-    plot_data <- all_costs_long_for_table %>% filter(County == input$county_avg_plot, Type == "avg", FamilyStructure == input$family_structure_avg)
+    plot_data <- all_costs_long_for_table %>%
+      filter(
+        County == input$county_avg_plot,
+        Type == "avg",
+        FamilyStructure == input$family_structure_avg,
+        Cost > 0  # Hide bars where the cost is $0
+      )
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
+    
+    # Convert CostVariable to a factor to maintain order and drop unused levels
+    plot_data$CostVariable <- factor(plot_data$CostVariable, levels = cost_variables_list)
+    
     p <- ggplot(plot_data, aes(x = CostVariable, y = Cost, text = paste0(CostVariable, ": $", format(round(Cost, 0), nsmall = 0, big.mark = ",")))) +
       geom_col(aes(fill = CostVariable), width = 0.9) +
       scale_fill_viridis_d(option = "plasma", guide = "none") +
-      scale_x_discrete(limits = cost_variables_list) +
       labs(title = paste("Average Monthly Cost Breakdown for", input$family_structure_avg, "in", input$county_avg_plot), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
-    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
     
+    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
   })
   
   output$avg_map <- renderLeaflet({
@@ -694,16 +748,15 @@ server <- function(input, output, session) {
           Type == "avg"
         )
       
-      # Create a complete, ordered data frame for all cost variables.
+      # Calculate total cost before filtering
+      total_cost <- sum(county_data$Cost, na.rm = TRUE)
       
-      popup_df <- tibble(CostVariable = cost_variables_list) %>%
-        left_join(county_data %>% select(CostVariable, Cost), by = "CostVariable") %>%
-        mutate(Cost = replace_na(Cost, 0))
-      
-      # Calculate total cost and percentage contribution for each category.
-      total_cost <- sum(popup_df$Cost)
-      popup_df <- popup_df %>%
-        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0)
+      # Prepare data for popup, removing any zero-cost items
+      popup_df <- county_data %>%
+        filter(Cost > 0) %>%
+        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0) %>%
+        mutate(CostVariable = factor(CostVariable, levels = cost_variables_list)) %>%
+        arrange(CostVariable)
       
       # Format each line for the popup
       breakdown_lines <- sprintf(
@@ -832,9 +885,108 @@ server <- function(input, output, session) {
     format_comparison_table(result_df)
   }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
+  # Render the UI for the minimum cost comparison summary
+  output$comparison_summary_min <- renderUI({
+    # Require at least 2 counties before trying to render
+    req(input$compare_counties_min, length(input$compare_counties_min) >= 2)
+    
+    # Recalculate the raw data needed for the summary
+    raw_df <- calculate_custom_cost(
+      "min", input$compare_counties_min, input$num_adults_min,
+      input$num_children_min, input$num_childcare_min, input$num_elders_min
+    )
+    
+    # Generate the summary UI from the raw data
+    generate_comparison_summary(raw_df)
+  })
+  
+  # Render the UI for the average cost comparison summary
+  output$comparison_summary_avg <- renderUI({
+    # Require at least 2 counties before trying to render
+    req(input$compare_counties_avg, length(input$compare_counties_avg) >= 2)
+    
+    # Recalculate the raw data needed for the summary
+    raw_df <- calculate_custom_cost(
+      "avg", input$compare_counties_avg, input$num_adults_avg,
+      input$num_children_avg, input$num_childcare_avg, input$num_elders_avg
+    )
+    
+    # Generate the summary UI from the raw data
+    generate_comparison_summary(raw_df)
+  })
+  
+  # ---Generate_comparison_summary function -------
+  
+  
+  generate_comparison_summary <- function(cost_data_df) {
+    # cost_data_df is the raw numeric output from calculate_custom_cost()
+    
+    # Check if there are 2 or 3 counties selected
+    num_counties <- ncol(cost_data_df) - 1 
+    if (!num_counties %in% c(2, 3)) {
+      return(NULL)
+    }
+    
+    # Calculate monthly totals from the raw numeric data
+    monthly_totals <- cost_data_df %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE))
+    
+    # Get names and values to find the min/max
+    cost_summary <- tibble(
+      county = colnames(monthly_totals),
+      cost = as.numeric(monthly_totals[1, ])
+    ) %>% arrange(cost)
+    
+    # Exit if there's no difference in cost
+    if (max(cost_summary$cost) - min(cost_summary$cost) <= 0) {
+      return(NULL)
+    }
+    
+    # Helper for formatting numbers as currency
+    f_curr <- function(val) paste0("$", format(round(val), nsmall = 0, big.mark = ","))
+    
+    # --- Logic for 3 Counties ---
+    if (nrow(cost_summary) == 3) {
+      least <- cost_summary[1,]
+      middle <- cost_summary[2,]
+      most <- cost_summary[3,]
+      
+      # Calculate pairwise differences
+      diff_high_mid <- most$cost - middle$cost
+      diff_mid_low <- middle$cost - least$cost
+      diff_high_low <- most$cost - least$cost
+      
+      # Created a bulleted list for a clear, descriptive summary
+      summary_content <- tags$ul(
+        tags$li(HTML(paste0("The monthly cost is highest in ", strong(most$county), " (", f_curr(most$cost), ") and lowest in ", strong(least$county), " (", f_curr(least$cost), ")."))),
+        tags$li(HTML(paste0("This household would spend ", strong(f_curr(diff_high_mid)), " more per month in ", strong(most$county), " compared to ", strong(middle$county), "."))),
+        tags$li(HTML(paste0("Living in ", strong(middle$county), " costs ", strong(f_curr(diff_mid_low)), " more per month than in ", strong(least$county), "."))),
+        tags$li(HTML(paste0("The total difference between the most and least expensive locations is ", strong(f_curr(diff_high_low)), " per month, which amounts to an annual difference of ", strong(f_curr(diff_high_low * 12)), ".")))
+      )
+      
+      # --- Logic for 2 Counties ---
+    } else { 
+      least <- cost_summary[1,]
+      most <- cost_summary[2,]
+      
+      diff_monthly <- most$cost - least$cost
+      diff_annual <- diff_monthly * 12
+      
+      summary_content <- HTML(paste0(
+        "For this household, the monthly cost is ",
+        strong(f_curr(diff_monthly)), " higher in ", strong(most$county),
+        " than in ", strong(least$county), ". ",
+        "Annually, this adds up to a difference of ", strong(f_curr(diff_annual)), "."
+      ))
+    }
+    
+    # Return the text inside a styled div
+    div(class = "comparison-summary-box", summary_content)
+  }
 }
-
 shinyApp(ui = ui, server = server)
+
+
 
 
 
