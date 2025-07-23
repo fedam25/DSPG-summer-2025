@@ -452,7 +452,7 @@ ui <- fluidPage(
                    )
           ),
           
-          # --- [NEW CODE] --- This tabPanel now calls the UI from the new module file
+          # --- This tabPanel now calls the UI from the new module file
           tabPanel("Income & Cost Gap",
                    gap_analysis_ui("gap_module")
           ),

@@ -10,6 +10,14 @@ gap_analysis_ui <- function(id) {
   
   # This tagList contains all the UI elements for the tab
   tagList(
+    
+    # --- CSS to shrink the legend ---
+    tags$style(HTML(paste0(
+      "#", ns("gap_map"), " .leaflet-control.legend { font-size: 10px; padding: 4px; }",
+      "#", ns("gap_map"), " .legend i { width: 12px; height: 12px; margin-top: 2px; }",
+      "#", ns("gap_map"), " .info.legend.leaflet-control { line-height: 1.2; }"
+    ))),
+    
     div(class = "content-container",
         div(class = "intro-text", h4("What is the Income-Cost Gap?"), p("This section compares the cost of living with local income levels to reveal the financial well-being of households across Virginia. The 'gap' is the difference between monthly income and the monthly cost of living. A positive gap (surplus) means income exceeds costs, while a negative gap (deficit) means costs are higher than income, indicating potential financial strain.")),
         
@@ -37,7 +45,7 @@ gap_analysis_ui <- function(id) {
         ),
         
         div(class = "section-title", "Counties with the Largest Gaps"),
-        p(class = "section-desc", "These charts highlight the 10 counties with the largest financial surpluses (where income most exceeds costs) and the 10 counties with the largest deficits (where costs most exceed income)."),
+        p(class = "section-desc", "These charts highlight the counties with the largest financial surpluses (where income most exceeds costs) and the counties with the largest deficits (where costs most exceed income)."),
         fluidRow(
           column(6, plotlyOutput(ns("surplus_plot"), height = 400)),
           column(6, plotlyOutput(ns("deficit_plot"), height = 400))
@@ -65,9 +73,9 @@ gap_analysis_server <- function(id, gap_data_full) {
     
     # 2. Render the Gap Map
     output$gap_map <- renderLeaflet({
-      map_data <- filtered_gap_data() # REMOVED the incorrect filter from this line
+      map_data <- filtered_gap_data()
       
-      validate(need(nrow(map_data) > 0 && any(!is.na(map_data$MonthlyGap)), "No gap data to display for this selection.")) # RESTORED this line
+      validate(need(nrow(map_data) > 0 && any(!is.na(map_data$MonthlyGap)), "No gap data to display for this selection.")) 
       
       max_abs_gap <- max(abs(map_data$MonthlyGap), na.rm = TRUE)
       pal <- colorNumeric(palette = "RdYlGn", domain = c(-max_abs_gap, max_abs_gap))
@@ -88,7 +96,7 @@ gap_analysis_server <- function(id, gap_data_full) {
           highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
         ) %>%
         addLegend(pal = pal, values = ~MonthlyGap, title = "Monthly Gap (Surplus/Deficit)",
-                  labFormat = labelFormat(prefix = "$"), opacity = 1, na.label = "") # MODIFIED: Added na.label = ""
+                  labFormat = labelFormat(prefix = "$"), opacity = 1, na.label = "")
     })
     
     # 3. Render Bar Charts for Surplus and Deficit
@@ -100,8 +108,10 @@ gap_analysis_server <- function(id, gap_data_full) {
       validate(need(nrow(plot_data) > 0, "No counties with a surplus for this selection."))
       
       p <- ggplot(plot_data, aes(x = MonthlyGap, y = reorder(NAME, MonthlyGap), text = paste0(NAME, ": ", dollar(MonthlyGap, accuracy = 1)))) +
-        geom_col(fill = "#21908C") + labs(title = "Top 10 Largest Surpluses", x = "Monthly Surplus ($)", y = "") +
-        theme_minimal() + scale_x_continuous(labels = dollar)
+        geom_col(fill = "#21908C") + 
+        labs(title = "Top Largest Surpluses", x = "Monthly Surplus ($)", y = "") + 
+        theme_minimal() + 
+        scale_x_continuous(labels = dollar)
       ggplotly(p, tooltip = "text")
     })
     
@@ -113,8 +123,10 @@ gap_analysis_server <- function(id, gap_data_full) {
       validate(need(nrow(plot_data) > 0, "No counties with a deficit for this selection."))
       
       p <- ggplot(plot_data, aes(x = MonthlyGap, y = reorder(NAME, MonthlyGap, decreasing = FALSE), text = paste0(NAME, ": ", dollar(MonthlyGap, accuracy = 1)))) +
-        geom_col(fill = "#D9534F") + labs(title = "Top 10 Largest Deficits", x = "Monthly Deficit ($)", y = "") +
-        theme_minimal() + scale_x_continuous(labels = dollar)
+        geom_col(fill = "#D9534F") + 
+        labs(title = "Top Largest Deficits", x = "Monthly Deficit ($)", y = "") + # FIXED: Title text updated
+        theme_minimal() + 
+        scale_x_continuous(labels = dollar)
       ggplotly(p, tooltip = "text")
     })
     
@@ -129,7 +141,7 @@ gap_analysis_server <- function(id, gap_data_full) {
       
       tags$div(
         h4(strong("Understanding the Financial Gap")),
-        p("The visualizations on this page reveal a critical story about economic well-being across Virginia. The monthly gap, the difference between income and the cost of living, shows whether a typical household in a county can make ends meet. A ", strong("green county (surplus)"), " suggests that the ", income_type, " is enough to cover the estimated ", scenario_type, " costs. In contrast, a ", strong("red county (deficit)"), " indicates that the income is not sufficient, forcing households to face difficult financial choices."),
+        p("The visualizations on this page reveal a critical story about economic well-being across Virginia. The monthly gap—the difference between income and the cost of living—shows whether a typical household in a county can make ends meet. A ", strong("green county (surplus)"), " suggests that the ", income_type, " is enough to cover the estimated ", scenario_type, " costs. In contrast, a ", strong("red county (deficit)"), " indicates that the income is not sufficient, forcing households to face difficult financial choices."),
         h4("What Drives the Deficit in Red Counties?"),
         p("Counties appear red for different reasons, highlighting diverse economic challenges across the state:"),
         tags$ul(
@@ -137,12 +149,10 @@ gap_analysis_server <- function(id, gap_data_full) {
           tags$li(strong("Low Local Wages:"), " In some rural and southern parts of Virginia, the cost of living may be lower, but wages have not kept pace. In these areas, a deficit occurs because incomes are insufficient to cover even a modest budget, leaving households economically vulnerable."),
           tags$li(strong("The 'Average' vs. 'Minimum' Scenarios:"), " When viewing the ", strong("Minimum"), " scenario, red counties represent areas where even a survival budget may be out of reach for those earning minimum wage. When switching to the ", strong("Average"), " scenario, you can see how many more counties turn red, illustrating the widespread challenge of achieving a modest, stable lifestyle on an average income.")
         ),
-        h4(strong("Key Takeaways from the Charts")),
+        h4("Key Takeaways from the Charts"),
         p("The bar charts of the top 10 surpluses and deficits provide a clear ranking of the most and least affordable places for the selected family type. The county with the largest deficit is currently ", strong(top_deficit$NAME), ", where the monthly costs exceed income by ", strong(dollar(abs(top_deficit$MonthlyGap), accuracy = 1)), ". This amounts to an annual shortfall of over ", strong(dollar(abs(top_deficit$MonthlyGap * 12), accuracy = 1)), ", a gap that can lead to debt, housing instability, and food insecurity."),
         p("This analysis is crucial for policymakers, community leaders, and residents to understand the true cost of living and advocate for solutions like affordable housing, childcare support, and policies that promote wage growth.")
       )
     })
   })
 }
-
-
