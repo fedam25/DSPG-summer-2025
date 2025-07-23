@@ -8,6 +8,9 @@ library(ggplot2)
 library(plotly)
 library(readxl)
 library(viridis)
+library(scales) 
+
+source("gap_analysis_module.R")
 
 options(tigris_use_cache = TRUE)
 
@@ -48,6 +51,11 @@ min_housing_raw <- read_csv("minimum_housing_cost.csv")
 avg_housing_raw <- read_csv("average_housing_cost.csv")
 min_healthcare_raw <- read_csv("minimum_healthcare_cost.csv")
 avg_healthcare_raw <- read_csv("average_healthcare_cost.csv")
+
+# Wage/Income Data
+average_wage <- read_csv("average_wage.csv")
+minimum_wage <- read_csv("minimum_wage.csv")
+
 
 # Function to standardize column names
 standardize_cols <- function(df) {
@@ -141,6 +149,21 @@ total_costs_for_map <- all_costs_long_for_table %>%
 
 # Join the aggregated cost data with the spatial data for plotting
 va_map_data_full <- left_join(va_counties, total_costs_for_map, by = "NAME")
+
+gap_data_full <- total_costs_for_map %>%
+  left_join(
+    minimum_wage %>% select(County, MonthlyIncome_min = `Monthly Income`), 
+    by = c("NAME" = "County")
+  ) %>%
+  left_join(
+    average_wage %>% select(County, MonthlyIncome_avg = `Monthly Income`), 
+    by = c("NAME" = "County")
+  ) %>%
+  mutate(
+    MonthlyIncome = if_else(Type == "min", MonthlyIncome_min, MonthlyIncome_avg),
+    MonthlyGap = MonthlyIncome - TotalCost
+  ) %>%
+  left_join(va_counties, ., by = "NAME")
 
 
 # --------- UI Definition ----------------
@@ -429,7 +452,10 @@ ui <- fluidPage(
                    )
           ),
           
-          #-------------------------------Methodology---------------------------------------  
+          # --- [NEW CODE] --- This tabPanel now calls the UI from the new module file
+          tabPanel("Income & Cost Gap",
+                   gap_analysis_ui("gap_module")
+          ),
           
           tabPanel("Methodology",
                    div(class = "content-container",
@@ -550,7 +576,6 @@ ui <- fluidPage(
                        )
                    )
           ),
-          #-------------------------------Results-----------------------------------------
           
           tabPanel("Results",
                    div(class = "content-container",
@@ -574,6 +599,9 @@ ui <- fluidPage(
 # --- Server Logic ---------------------------------
 
 server <- function(input, output, session) {
+  
+  # Call the server logic from the new module file
+  gap_analysis_server("gap_module", gap_data_full = reactive({ gap_data_full }))
   
   min_cost_data_for_table_filtered <- reactive({ req(input$county_min_table); all_costs_long_for_table %>% filter(County == input$county_min_table, Type == "min") })
   avg_cost_data_for_table_filtered <- reactive({ req(input$county_avg_table); all_costs_long_for_table %>% filter(County == input$county_avg_table, Type == "avg") })
@@ -896,7 +924,6 @@ server <- function(input, output, session) {
       input$num_children_min, input$num_childcare_min, input$num_elders_min
     )
     
-    # Generate the summary UI from the raw data
     generate_comparison_summary(raw_df)
   })
   
@@ -911,13 +938,11 @@ server <- function(input, output, session) {
       input$num_children_avg, input$num_childcare_avg, input$num_elders_avg
     )
     
-    # Generate the summary UI from the raw data
     generate_comparison_summary(raw_df)
   })
   
   # ---Generate_comparison_summary function -------
-  
-  
+
   generate_comparison_summary <- function(cost_data_df) {
     # cost_data_df is the raw numeric output from calculate_custom_cost()
     
@@ -985,7 +1010,6 @@ server <- function(input, output, session) {
   }
 }
 shinyApp(ui = ui, server = server)
-
 
 
 
