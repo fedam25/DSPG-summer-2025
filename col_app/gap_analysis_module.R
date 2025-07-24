@@ -11,7 +11,7 @@ gap_analysis_ui <- function(id, family_structures_choices) {
   # This tagList contains all the UI elements for the tab
   tagList(
     
-    # --- CSS to shrink the legend ---
+    # --- CSS for the legend ---
     tags$style(HTML(paste0(
       "#", ns("gap_map"), " .leaflet-control.legend { font-size: 10px; padding: 4px; }",
       "#", ns("gap_map"), " .legend i { width: 12px; height: 12px; margin-top: 2px; }",
@@ -19,7 +19,7 @@ gap_analysis_ui <- function(id, family_structures_choices) {
     ))),
     
     div(class = "content-container",
-        div(class = "intro-text", h4("What is the Income-Cost Gap?"), p("This section compares the cost of living with local income levels to reveal the financial well-being of households across Virginia. The 'gap' is the difference between monthly income and the monthly cost of living. A positive gap (surplus) means income exceeds costs, while a negative gap (deficit) means costs are higher than income, indicating potential financial strain.")),
+        div(class = "intro-text", h4(strong("What is the Income-Cost Gap?")), p("This section compares the cost of living with local income levels to reveal the financial well-being of households across Virginia. The 'gap' is the difference between monthly income and the monthly cost of living. A positive gap (surplus) means income exceeds costs, while a negative gap (deficit) means costs are higher than income, indicating potential financial strain.")),
         
         div(class = "section-title", "Gap Analysis Map"),
         p(class = "section-desc", "This map shows the monthly financial gap for a selected family type. Green areas have an income surplus, while red areas have a deficit. Use the controls to switch between minimum and average scenarios."),
@@ -103,30 +103,37 @@ gap_analysis_server <- function(id, gap_data_full) {
     output$surplus_plot <- renderPlotly({
       plot_data <- filtered_gap_data() %>%
         filter(!is.na(MonthlyGap) & MonthlyGap > 0) %>%
+        # 1. Add distinct() for consistency and to prevent segmented bars.
+        distinct(NAME, .keep_all = TRUE) %>%
         slice_max(order_by = MonthlyGap, n = 10)
       
       validate(need(nrow(plot_data) > 0, "No counties with a surplus for this selection."))
       
       p <- ggplot(plot_data, aes(x = MonthlyGap, y = reorder(NAME, MonthlyGap), text = paste0(NAME, ": ", dollar(MonthlyGap, accuracy = 1)))) +
-        geom_col(fill = "#21908C") + 
+        # 2. Add width to control bar thickness so it looks good with few counties.
+        geom_col(fill = "#21908C", width = 0.8) + 
         labs(title = "Top Largest Surpluses", x = "Monthly Surplus ($)", y = "") + 
         theme_minimal() + 
-        scale_x_continuous(labels = dollar)
+        # 3. Add limits to ensure the x-axis always starts at 0.
+        scale_x_continuous(labels = dollar, limits = c(0, max(plot_data$MonthlyGap) * 1.05))
       ggplotly(p, tooltip = "text")
     })
     
     output$deficit_plot <- renderPlotly({
       plot_data <- filtered_gap_data() %>%
         filter(!is.na(MonthlyGap) & MonthlyGap < 0) %>%
+     
+        distinct(NAME, .keep_all = TRUE) %>%
         slice_min(order_by = MonthlyGap, n = 10)
       
       validate(need(nrow(plot_data) > 0, "No counties with a deficit for this selection."))
       
       p <- ggplot(plot_data, aes(x = MonthlyGap, y = reorder(NAME, MonthlyGap, decreasing = FALSE), text = paste0(NAME, ": ", dollar(MonthlyGap, accuracy = 1)))) +
         geom_col(fill = "#D9534F") + 
-        labs(title = "Top Largest Deficits", x = "Monthly Deficit ($)", y = "") + # FIXED: Title text updated
+        labs(title = "Top Largest Deficits", x = "Monthly Deficit ($)", y = "") +
         theme_minimal() + 
-        scale_x_continuous(labels = dollar)
+        # FIX 2: Set explicit limits on the x-axis to make bars stretch.
+        scale_x_continuous(labels = dollar, limits = c(min(plot_data$MonthlyGap) * 1.05, 0))
       ggplotly(p, tooltip = "text")
     })
     
@@ -141,7 +148,7 @@ gap_analysis_server <- function(id, gap_data_full) {
       
       tags$div(
         h4(strong("Understanding the Financial Gap")),
-        p("The visualizations on this page reveal a critical story about economic well-being across Virginia. The monthly gap—the difference between income and the cost of living—shows whether a typical household in a county can make ends meet. A ", strong("green county (surplus)"), " suggests that the ", income_type, " is enough to cover the estimated ", scenario_type, " costs. In contrast, a ", strong("red county (deficit)"), " indicates that the income is not sufficient, forcing households to face difficult financial choices."),
+        p("The visualizations on this page reveal a critical story about economic well-being across Virginia. The monthly gap, the difference between income and the cost of living—shows whether a typical household in a county can make ends meet. A ", strong("green county (surplus)"), " suggests that the ", income_type, " is enough to cover the estimated ", scenario_type, " costs. In contrast, a ", strong("red county (deficit)"), " indicates that the income is not sufficient, forcing households to face difficult financial choices."),
         h4("What Drives the Deficit in Red Counties?"),
         p("Counties appear red for different reasons, highlighting diverse economic challenges across the state:"),
         tags$ul(
@@ -156,3 +163,6 @@ gap_analysis_server <- function(id, gap_data_full) {
     })
   })
 }
+
+
+

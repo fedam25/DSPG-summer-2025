@@ -8,6 +8,9 @@ library(ggplot2)
 library(plotly)
 library(readxl)
 library(viridis)
+library(scales) 
+
+source("gap_analysis_module.R")
 
 options(tigris_use_cache = TRUE)
 
@@ -48,6 +51,10 @@ min_housing_raw <- read_csv("minimum_housing_cost.csv")
 avg_housing_raw <- read_csv("average_housing_cost.csv")
 min_healthcare_raw <- read_csv("minimum_healthcare_cost.csv")
 avg_healthcare_raw <- read_csv("average_healthcare_cost.csv")
+
+# Wage/Income Data
+average_wage <- read_csv("average_wage.csv")
+minimum_wage <- read_csv("minimum_wage.csv")
 
 
 # Function to standardize column names
@@ -143,8 +150,24 @@ total_costs_for_map <- all_costs_long_for_table %>%
 # Join the aggregated cost data with the spatial data for plotting
 va_map_data_full <- left_join(va_counties, total_costs_for_map, by = "NAME")
 
+gap_data_full <- total_costs_for_map %>%
+  left_join(
+    minimum_wage %>% select(County, MonthlyIncome_min = `Monthly Income`), 
+    by = c("NAME" = "County")
+  ) %>%
+  left_join(
+    average_wage %>% select(County, MonthlyIncome_avg = `Monthly Income`), 
+    by = c("NAME" = "County")
+  ) %>%
+  mutate(
+    MonthlyIncome = if_else(Type == "min", MonthlyIncome_min, MonthlyIncome_avg),
+    MonthlyGap = MonthlyIncome - TotalCost
+  ) %>%
+  left_join(va_counties, ., by = "NAME")
 
-# --- UI Definition ---
+
+# --------- UI Definition ----------------
+
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -214,6 +237,16 @@ ui <- fluidPage(
         line-height: 1.6;
       }
       
+    .comparison-summary-box {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f0f7f7;
+      border-left: 5px solid #21908C;
+      border-radius: 5px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+      
     "))
   ),
   
@@ -227,42 +260,46 @@ ui <- fluidPage(
           
           tabPanel("Introduction",
                    div(class = "content-container",
-                       div(class = "about-section",
-                           h2("About Our Project"),
-                           p("This dashboard was developed as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program."),
-                           p("Its primary purpose is to provide data-driven insights into the cost of living across all counties and cities in Virginia. Our goal is to empower citizens, policymakers, and researchers with accessible information to better understand financial landscapes and make informed decisions."),
-                           p("This tool includes both minimum and average cost estimates, breaking down expenses into key categories for various common family types."),
-                           div(class = "section-title", "Why is This Important?"),
-                           tags$ul(
-                             tags$li("For individuals and families, it helps in financial planning, budgeting, and making decisions about where to live."),
-                             tags$li("For policymakers, it provides data to develop effective social programs, minimum wage policies, and affordable housing initiatives."),
-                             tags$li("For businesses, it can inform decisions about employee compensation and location planning."),
-                             tags$li("For researchers, it offers a robust dataset for studying economic disparities and well-being across the state.")
-                           ),
-                           div(class = "section-title", "Minimum vs Average Cost"),
-                           p("In this dashboard, you’ll see both 'Minimum Cost' and 'Average Cost' estimates for each location in Virginia. But what do they really mean?"),
-                           p("The Minimum Cost is based on a survival budget, it reflects the lowest possible expenses needed to cover basic needs like housing, food, healthcare, and transportation. This is often used to understand what it takes to just get by, without any extras."),
-                           p("The Average Cost, on the other hand, reflects a more typical lifestyle. It includes the average amount people actually spend on the same categories, which can vary depending on where they live and how much they earn."),
-                           p("We separated these two to help users compare different standards of living. You can switch between the 'Minimum Cost' and 'Average Cost' tabs to see how costs change, and what a basic vs. average lifestyle might look like in different parts of Virginia."),
-                           div(class = "section-title", "How to Use This Dashboard"),
-                           tags$ol(
-                             tags$li("Start on the 'Introduction' page for an overview of our project, why it's important, and how to use this tool."),
-                             tags$li("Navigate to the 'Methodology' tab to understand how we calculate costs and the sources we use."),
-                             tags$li("Click the 'Minimum Cost' or 'Average Cost' tab to explore the data."),
-                             tags$li("On these tabs, you will find separate controls for the table and the bar chart, allowing you to compare different scenarios."),
-                             tags$li("The Map displays total costs across Virginia. Use the new dropdown menu above the map to see costs for different family types.")
-                           ),
-                           div(class = "section-title", "Acknowledgement"),
-                           tags$ul(
-                             tags$li("This dashboard was developed by Feda Mohammadi and Julia Vecharello as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in Summer 2025. We extend our sincere gratitude to the DSPG program for providing this valuable opportunity to contribute to public understanding through data science:)")
-                           )
-                       )
+                       
+                       h2("About This Dashboard"),
+                       p("The Virginia Cost of Living Dashboard was created as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in 2025. This tool helps individuals, policymakers, and researchers explore how the cost of living varies across Virginia’s 133 counties and independent cities."),
+                       
+                       p("It includes two views: the minimum cost of living (a basic survival budget) and the average cost of living (a more typical monthly budget). Users can view breakdowns by family structure and customize scenarios to see how costs differ from one place to another."),
+                       p(strong("Important Note:"), " All values in this dashboard are ", strong("nominal"), " and represent the cost of living in ", strong("2023"), ". The estimates are ", strong("not seasonally adjusted"), " and this means that they reflect the average for the year rather than short-term fluctuations."),
+                       
+                       div(class = "section-title", "Why This Matters"),
+                       tags$ul(
+                         tags$li("Families can use this data to plan where to live based on affordability."),
+                         tags$li("Policymakers can make better decisions on living wages, housing policies, and public assistance programs."),
+                         tags$li("Businesses can plan compensation and understand workforce needs."),
+                         tags$li("Researchers can study regional economic disparities across the state.")
+                       ),
+                       
+                       div(class = "section-title", "Minimum vs. Average Costs"),
+                       p("We report both 'Minimum Cost' and 'Average Cost' estimates. The Minimum Cost reflects a no-frills survival budget - the lowest amount needed to cover basic needs. The Average Cost includes a more typical level of spending based on how people actually live, allowing for some discretionary items and comfort."),
+                       
+                       p("Both perspectives are important. The minimum cost can highlight where people are most economically vulnerable, while the average cost shows what’s needed for a modest, stable life."),
+                       
+                       div(class = "section-title", "What’s Included"),
+                       p("This dashboard breaks down the total monthly cost of living into categories like housing, food, transportation, healthcare, taxes, childcare, elder care, technology, and miscellaneous expenses. These estimates are calculated separately for six common family structures: 1 Adult: 19-50 Years, 2 Adults: 19-50 Years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adults 65+, and 2 Adults 65+."),
+                       
+                       div(class = "section-title", "How to Use This Tool"),
+                       tags$ol(
+                         tags$li("Start with this page to understand the goals and features of the dashboard. This page gives you an overview of what this project is about and its purpose."),
+                         tags$li("Go to the 'Minimum Cost' or 'Average Cost' tabs to explore data for different counties and family types. (More instructions are provided on each page.) "),
+                         tags$li("Use the dropdown menus and maps to see how costs vary by location and household structure. The colors on the maps are intenationally used to represent the least expensive (light colors) and the more expensive regions (darker colors) in Virginia."),
+                         tags$li("At the end of the minimum and the average cost tabs, you can compare multiple counties side-by-side or build custom family profiles to see tailored results for your own family size.")
+                       ),
+                       
+                       div(class = "section-title", "Acknowledgement"),
+                       p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone. A huge thanks to Dr. Cary, our faculty advisor, and Renu Ojha, our graduate student advisor.")
+                       
                    )
           ),
           
           tabPanel("Minimum Cost",
                    div(class = "content-container",
-                       div(class = "intro-text", h4("What is Minimum Cost?"), p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")),
+                       div(class = "intro-text", h4(strong("What is Minimum Cost?")), p("The Minimum Cost represents a survival budget. It covers only the most essential expenses required to maintain a basic standard of living in a given county or city. This estimate does not include discretionary spending or savings.")),
                        
                        div(class = "section-title", "Minimum Cost Table"),
                        div(class = "section-desc", "This table shows the monthly minimum cost by category for all family types in the selected county."),
@@ -276,6 +313,7 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
+                                uiOutput("min_table_title"), # This line is new
                                 div(class = "table-container", tableOutput("min_table"))
                          )
                        ),
@@ -316,8 +354,8 @@ ui <- fluidPage(
                        p(class = "section-desc", "Build a custom family profile and select up to 3 locations to compare estimated costs. Note: This is an estimate based on the closest available data profile."),
                        fluidRow(
                          column(3,
-                                numericInput("num_adults_min", "Number of Adults (19-50):", 0, min = 0, max = 3, width = "100%"),
-                                numericInput("num_children_min", "Number of Children:", 0, min = 0, max = 4, width = "100%"),
+                                numericInput("num_adults_min", "Number of Adults (19-50):", 1, min = 0, max = 3, width = "100%"),
+                                numericInput("num_children_min", "Number of Children:", 1, min = 0, max = 4, width = "100%"),
                                 numericInput("num_childcare_min", "Children in Childcare:", 0, min = 0, max = 4, width = "100%"),
                                 numericInput("num_elders_min", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
                                 selectInput("compare_counties_min", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
@@ -327,7 +365,8 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
-                                div(class = "table-container", tableOutput("custom_table_min"))
+                                div(class = "table-container", tableOutput("custom_table_min")),
+                                uiOutput("comparison_summary_min")
                          )
                        ),
                        
@@ -338,7 +377,7 @@ ui <- fluidPage(
           
           tabPanel("Average Cost",
                    div(class = "content-container",
-                       div(class = "intro-text", h4("What is Average Cost?"), p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")),
+                       div(class = "intro-text", h4(strong("What is Average Cost?")), p("The Average Cost estimate reflects typical expenses of average households, going beyond just survival needs. It includes a more comfortable standard of living, allowing for some discretionary spending, savings, and a wider range of goods and services.")),
                        
                        div(class = "section-title", "Average Cost Table"),
                        div(class = "section-desc", "This table shows the monthly average cost by category for all family types in the selected county."),
@@ -352,6 +391,7 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
+                                uiOutput("avg_table_title"), # This line is new
                                 div(class = "table-container", tableOutput("avg_table"))
                          )
                        ),
@@ -391,8 +431,8 @@ ui <- fluidPage(
                        p(class = "section-desc", "Build a custom family profile and select up to 3 locations to compare estimated costs. Note: This is an estimate based on the closest available data profile."),
                        fluidRow(
                          column(3,
-                                numericInput("num_adults_avg", "Number of Adults (19-50):", 0, min = 0, max = 3, width = "100%"),
-                                numericInput("num_children_avg", "Number of Children:", 0, min = 0, max = 4, width = "100%"),
+                                numericInput("num_adults_avg", "Number of Adults (19-50):", 1, min = 0, max = 3, width = "100%"),
+                                numericInput("num_children_avg", "Number of Children:", 1, min = 0, max = 4, width = "100%"),
                                 numericInput("num_childcare_avg", "Children in Childcare:", 0, min = 0, max = 4, width = "100%"),
                                 numericInput("num_elders_avg", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
                                 selectInput("compare_counties_avg", "Select up to 3 Counties/Cities:", choices = virginia_county_names, multiple = TRUE, selected = "Fairfax County", width = "100%"),
@@ -402,7 +442,8 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
-                                div(class = "table-container", tableOutput("custom_table_avg"))
+                                div(class = "table-container", tableOutput("custom_table_avg")),
+                                uiOutput("comparison_summary_avg")
                          )
                        ),
                        
@@ -411,35 +452,130 @@ ui <- fluidPage(
                    )
           ),
           
+          # --- This tabPanel now calls the UI from the new module file
+          tabPanel("Income & Cost Gap",
+                   gap_analysis_ui("gap_module", family_structures_choices = family_structures_list)
+          ),
+          
           tabPanel("Methodology",
                    div(class = "content-container",
-                       div(class = "about-section",
-                           div(class = "section-title", "Our Methodology"),
-                           p("Our methodology involves compiling data from various sources to estimate the costs associated with essential goods and services. We categorize expenses to provide a comprehensive view of living costs. We differentiate between 'Minimum Cost' and 'Average Cost' to reflect different standards of living."),
-                           p("The data is collected for each county and independent city in Virginia and processed to align with the family structures defined in the next section."),
+                       div(class = "methodology-section",
+                           withMathJax(),
+                           div(class = "section-title", "Methodology Overview"),
+                           p("Our methodology estimates the monthly cost of living across Virginia's 133 counties and independent cities using the data sources from 2023. We compiled data from authoritative national and state-level sources for nine essential cost categories (housing, food, transportation, taxes, healthcare, childcare, elder care, technology, and Miscellaneuos). For each category, we developed both a 'Minimum Cost' and an 'Average Cost' estimate to represent a basic survival budget versus a more typical, stable living standard. Costs were then tailored to six common family structures (1 Adult 19-50 years, 2 Adults 19-50 years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adult 65+, and 2 Adults 65+) to reflect how expenses change with household size and composition. Methodologies that rely on proxies (The Healthcare and Elder Care data), such as scaling by local income, do so because direct, county-level data for that specific cost is unavailable. This approach allows for consistent and reasonable estimates across all localities."),
+                           
                            div(class = "section-title", "Our Variables"),
-                           tags$ol(
-                             tags$li(div(class = "about-variable-item", h4("Housing"), p("This variable represents the monthly cost associated with housing, including rent or mortgage payments, and basic maintenance. It is calculated based on median rental costs and homeownership expenses specific to each county/city, adjusted for family size and type of dwelling."))),
-                             tags$li(div(class = "about-variable-item", h4("Food"), p("Food costs cover the typical monthly expenses for groceries and meals. This is calculated using average food prices for common items, considering the nutritional needs and dietary patterns for different age groups and family structures. It accounts for both at-home consumption and a small allowance for eating out."))),
-                             tags$li(div(class = "about-variable-item", h4("Transportation"), p("Transportation expenses include costs related to commuting, personal vehicle maintenance (gas, insurance, repairs), and public transit fares where applicable. We factor in the average commute distances in each county and availability of public transportation options."))),
-                             tags$li(div(class = "about-variable-item", h4("Taxes"), p("This category includes estimated state and local income taxes, sales taxes on goods and services, and property taxes (for homeowners or indirectly through rent). Federal taxes are also considered to provide a holistic view of the tax burden."))),
-                             tags$li(div(class = "about-variable-item", h4("Healthcare"), p("Healthcare costs cover monthly premiums for health insurance, out-of-pocket expenses for doctor visits, prescriptions, and other medical services. These estimates are based on typical health plan costs and average healthcare utilization rates."))),
-                             tags$li(div(class = "about-variable-item", h4("Childcare"), p("For families with children, childcare costs include expenses for daycare, preschool, or after-school programs. These costs are highly variable and are estimated based on the average rates for licensed childcare facilities in each geographic area."))),
-                             tags$li(div(class = "about-variable-item", h4("Technology"), p("Technology costs encompass essential communication and digital access, such as internet service, cell phone plans, and a portion for device depreciation or replacement. This reflects the modern necessity of digital connectivity."))),
-                             tags$li(div(class = "about-variable-item", h4("Elder Care"), p("This variable accounts for potential costs associated with elder care, which might include in-home care services, assisted living facilities, or medical supplies for seniors. This is primarily relevant for households with elderly dependents (65+)."))),
-                             tags$li(div(class = "about-variable-item", h4("Miscellaneous"), 
-                                         p("The miscellaneous category covers a range of other essential expenses not covered elsewhere, such as personal care products, clothing, household supplies, and a small allowance for entertainment or emergencies."),
-                                         p(strong("Note:"), "Miscellaneous costs are estimated at 10% of the total budget (excluding taxes) to cover unexpected or one-time expenses (like new shoes or household repairs). It's just a standard estimate (10%) based on their calculation method (or methodology).")
-                             )),
-                             tags$li(div(class = "about-variable-item", h4("Hourly Wage"), p("The hourly wage represents the estimated pre-tax hourly income required for a single adult to cover the minimum or average cost of living in a given area. It is calculated by dividing the total annual cost by the standard working hours in a year.")))
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Housing & Utilities")),
+                               p("Housing costs were estimated using the 2023 Fair Market Rent (FMR) data from the U.S. Department of Housing and Urban Development (HUD). FMRs represent the 40th percentile of gross rents for a modest housing unit in a specific locality and importantly, they already include the cost of basic utilities like electricity, water, and heat. We assigned apartment sizes based on family type (e.g., 1-bedroom for single adults, 3-bedroom for a family of four)."),
+                               p("Minimum Cost was set at 110% of the FMR. The 10% buffer accounts for potential utility costs that may exceed HUD's standard allowance, ensuring a realistic survival budget. And the Average Cost was set at 125% of the FMR. This multiplier provides a more typical market-rate rent, reflecting what households not receiving subsidies might pay for slightly better housing."),
+                               p("$$\\text{Minimum Housing Cost} = \\text{FMR} \\times 1.10$$"),
+                               p("$$\\text{Average Housing Cost} = \\text{FMR} \\times 1.25$$")
                            ),
+                           
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Food")),
+                               p("Food costs are based on the U.S. Department of Agriculture's (USDA) official Food Plans, which provide cost estimates for a healthy diet at different budget levels. We calculated the per-person monthly cost and multiplied it by the number of individuals in each family structure."),
+                               p("Minimum Cost uses the USDA's 'Thrifty Food Plan.' This plan represents the bare minimum cost for a nutritionally adequate diet and is the basis for the federal SNAP (food stamp) program. And the Average Cost uses the USDA's 'Moderate-Cost Food Plan,' which allows for a wider variety of foods and represents a more realistic budget for a typical middle-class household."),
+                               p("$$\\text{Total Food Cost} = \\text{Per Person Cost} \\times \\text{Household Size}$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Transportation")),
+                               p("Transportation costs were estimated using a model that combines car and public transit costs for each county. We used data from the U.S. Census Bureau (ACS) to find how many people drive or take public transit in each area. Then, we estimated a base cost using more realistic vehicle costs ($5,000–$6,000 per year), which better reflect the spending of lower-income households who may drive older cars and travel less."),
+                               p("The base cost was multiplied by values that reflect the needs of different family types. For example, a two-adult household has higher costs than a one-adult household, while seniors usually spend less. The Minimum Cost is calculated as 85% of the full value to reflect more conservative travel behavior, while the Average Cost uses the full value."),
+                               p("$$\\text{Minimum Transportation Cost} = \\text{Average Cost} \\times 0.85$$")
+                           ),
+                           
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Taxes")),
+                               p("Tax estimates include federal and state income taxes, federal payroll taxes (Social Security and Medicare), and considerations for tax credits. The calculation begins by estimating the annual income for each family structure based on county-level wage data from the U.S. Census Bureau (ACS)."),
+                               p("Average Cost is calculated directly from this average income using 2023 tax brackets, standard deductions, and applicable credits like the Child Tax Credit and Dependent Care Credit."),
+                               p("Minimum Cost is an approximation derived by scaling down the average tax burden. We calculated a ratio of the minimum survival income to the average income for a given family and applied this ratio to the average tax amount, providing a reasonable estimate for taxes at a lower income level."), 
+                               p("$$\\text{Minimum Tax} = \\text{Average Tax} \\times \\left( \\frac{\\text{Minimum Income}}{\\text{Average Income}} \\right)$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Healthcare")),
+                               p("Since direct county-level healthcare cost data is unavailable, we used an indirect estimation method. We started with state-level baseline annual costs for a household, derived from data published by KFF and the Centers for Medicare & Medicaid Services (CMS). These base costs were then scaled for each county using a ratio of the county's median household income to Virginia's statewide median income (both from the ACS). This common economic practice assumes that healthcare costs tend to be higher in areas with higher incomes."),
+                               p("Finally, these county-scaled costs were adjusted using multipliers for each family structure to account for different healthcare needs based on age and household size (e.g., families with children have higher costs). These multipliers were adapted from models like the MIT Living Wage Calculator. The Minimum Cost and Average Cost scenarios are based on different starting baseline figures to reflect lower- and higher-cost health plans, respectively."), 
+                               
+                               p("$$\\text{County Healthcare Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
+                               p("$$\\text{Final Healthcare Cost} = \\text{County Cost} \\times \\text{Multiplier}_{\\text{family}}$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Childcare")),
+                               p("Childcare costs were calculated using county-level 2024 price data from the National Database of Childcare Prices (NDCP). This dataset provides annual minimum and general (average) prices for both home-based and center-based care across different child age groups (infant, toddler, etc.). For each county, we first calculated an average cost across all age groups for both home-based and center-based care, and then averaged these two values together to get a single 'combined' cost for the county."),
+                               p("This annual figure was converted to a monthly cost. For families with children, this per-child cost was multiplied by the number of children in the household (e.g., twice the cost for a two-child family). For households with no children, the childcare cost is zero."), 
+                               
+                               p("$$\\text{Monthly Childcare Cost} = \\left( \\frac{\\text{Annual Cost}}{12} \\right) \\times \\text{Number of Children}$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Technology")),
+                               p("Technology costs are defined as one broadband internet connection per household plus one smartphone plan per adult. Costs are based on national benchmarks and are assumed to be uniform across all Virginia counties, as local data is not available."),
+                               p("Minimum Cost uses baseline costs of $77/month for internet and $15/month per adult for a smartphone plan. And the Average Cost uses higher benchmarks of $81/month for internet and $64.50/month per adult for a smartphone plan. Households with no adults have a technology cost of zero."), 
+                               
+                               p("$$\\text{Minimum Technology Cost} = 77 + (15 \\times \\text{Number of Adults})$$"),
+                               p("$$\\text{Average Technology Cost} = 81 + (64.5 \\times \\text{Number of Adults})$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Elder Care")),
+                               p("Elder care costs are estimated for the '1 Adult: 65+' and '2 Adults: 65+' family structures using an income-scaling method similar to healthcare. We used Virginia-specific monthly median costs from the Genworth 2024 Cost of Care Survey as our baseline."),
+                               p("Minimum Cost is based on the median cost of Adult Day Health Care ($1,766/month). And Average Cost is based on the median cost of an Assisted Living Facility ($6,512/month)."),
+                               p("These state-level base costs were then scaled for each county using the ratio of local to state median household income. The cost for a two-elder household was set at 1.8 times the single-elder cost to account for shared expenses."), 
+                               
+                               p("$$\\text{County Elder Care Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
+                               p("$$\\text{Two-Elder Cost} = \\text{Single Elder Cost} \\times 1.8$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Miscellaneous")),
+                               p("The miscellaneous category covers a range of other essential but non-itemized expenses, such as clothing, personal care products, and household supplies. Following a common budgeting principle, this cost is estimated as 10% of the total monthly budget, excluding taxes. It provides a buffer for minor, unpredictable expenses that are a normal part of life."), 
+                               
+                               p("$$\\text{Miscellaneous Cost} = 0.10 \\times (\\text{Total Monthly Cost} - \\text{Taxes})$$")
+                           ),
+                           
+                           div(class = "about-variable-item",
+                               h4(strong("Hourly Wage")),
+                               p("The hourly wage is not shown in the table, but we used it for the taxes calculation. It represents the pre-tax hourly wage a household's earner(s) must make to cover the total monthly cost of living. It is calculated by taking the 'Annual Total' cost for a given family structure and dividing it by 2,080 (the standard number of work hours in a year, based on a 40-hour work week)."), 
+                               
+                               p("$$\\text{Hourly Wage} = \\frac{\\text{Annual Total Cost}}{2,080}$$")
+                           ),
+                           
+                           
                            div(class = "section-title", "Sources"),
-                           p("Data is compiled from a variety of public and private sources to ensure accuracy and relevance. Key sources include:"),
-                           tags$ul(
-                             tags$li("U.S. Census Bureau (population demographics, income data)"),
-                             tags$li("Bureau of Labor Statistics (consumer price index, employment costs)"),
-                             tags$li("Local government data (property tax rates, utility costs)"),
-                             tags$li("Other relevant research and surveys.")
+                           p("Data was compiled and processed from a variety of public and private sources to ensure accuracy and relevance. The following key sources were used in this project:"),
+                           tags$ul(class = "sources-list",
+                                   tags$li(strong("AAA. (2023)."), em("Your Driving Costs."), "Retrieved from the AAA Exchange website."),
+                                   tags$li(strong("Dunn, A., Grosse, S. D., & Zuvekas, S. H. (2018)."), "Adjusting Health Expenditures for Inflation: A Review of Measures for Health Services Research in the United States.", em("Health Services Research, 53"),"(1), 175–196. ", tags$a(href="https://doi.org/10.1111/1475-6773.12618", target="_blank", "https://doi.org/10.1111/1475-6773.12618")),
+                                   tags$li(strong("Genworth. (2024)."), em("Cost of Care Survey."), "Retrieved from ", tags$a(href="https://www.genworth.com/aging-and-you/finances/cost-of-care.html", target="_blank", "https://www.genworth.com/aging-and-you/finances/cost-of-care.html")),
+                                   tags$li(strong("Internal Revenue Service. (2022)."), em("IRS provides tax inflation adjustments for tax year 2023."), "Retrieved from ", tags$a(href="https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2023", target="_blank", "https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2023")),
+                                   tags$li(strong("KFF. (2022)."), em("Health Care Expenditures per Capita by Service by State of Residence."), "Retrieved July 14, 2025, from ", tags$a(href="https://www.kff.org/other/state-indicator/health-spending-per-capita-by-service/", target="_blank", "www.kff.org")),
+                                   tags$li(strong("MIT. (n.d.)."), em("Living Wage Calculator Methodology."), "Retrieved from ", tags$a(href="https://livingwage.mit.edu/pages/methodology", target="_blank", "https://livingwage.mit.edu/pages/methodology")),
+                                   tags$li(strong("Pebesma, E. (2018)."), "Simple Features for R: Standardized Support for Spatial Vector Data.", em("The R Journal, 10"),"(1), 439-446. ", tags$a(href="https://doi.org/10.32614/RJ-2018-009", target="_blank", "https://doi.org/10.32614/RJ-2018-009")),
+                                   tags$li(strong("Posit Team. (2023)."), em("RStudio: Integrated Development Environment for R."), "Posit Software, PBC. ", tags$a(href="http://www.posit.co/", target="_blank", "http://www.posit.co/")),
+                                   tags$li(strong("R Core Team. (2023)."), em("R: A Language and Environment for Statistical Computing."), "R Foundation for Statistical Computing. ", tags$a(href="https://www.R-project.org/", target="_blank", "https://www.R-project.org/")),
+                                   tags$li(strong("United for ALICE. (n.d.)."), em("The Cost of Basics."), "Retrieved from ", tags$a(href="https://www.unitedforalice.org/the-cost-of-basics/virginia", target="_blank", "https://www.unitedforalice.org/the-cost-of-basics/virginia")),
+                                   tags$li(strong("U.S. Census Bureau. (2023)."), em("American Community Survey 5-Year Estimates (Table S1901)."), "Retrieved from ", tags$a(href="https://data.census.gov", target="_blank", "https://data.census.gov")),
+                                   tags$li(strong("U.S. Census Bureau. (2023)."), em("American Community Survey 5-Year Estimates (Table B08101)."), "Retrieved from ", tags$a(href="https://data.census.gov", target="_blank", "https://data.census.gov")),
+                                   tags$li(strong("U.S. Census Bureau. (2023)."), em("American Community Survey 5-Year Estimates (Table B25044)."), "Retrieved from ", tags$a(href="https://data.census.gov", target="_blank", "https://data.census.gov")),
+                                   tags$li(strong("U.S. Department of Agriculture. (2023)."), em("Cost of Food Reports."), "Retrieved from ", tags$a(href="https://www.fns.usda.gov/cnpp/usda-food-plans-cost-food-monthly-reports", target="_blank", "https://www.fns.usda.gov")),
+                                   tags$li(strong("U.S. Department of Housing and Urban Development. (2023)."), em("Fair Market Rents."), "Retrieved from ", tags$a(href="https://www.huduser.gov/portal/datasets/fmr.html", target="_blank", "https://www.huduser.gov/portal/datasets/fmr.html")),
+                                   tags$li(strong("U.S. Department of Labor, Women's Bureau. (2024)."), em("National Database of Childcare Prices."), "DataLumos. Retrieved July 14, 2025, from ", tags$a(href="https://www.dol.gov/agencies/wb/topics/featured-childcare", target="_blank", "www.dol.gov/agencies/wb/topics/featured-childcare")),
+                                   tags$li(strong("Virginia Department of Taxation. (n.d.)."), em("Individual Income Tax."), "Retrieved from ", tags$a(href="https://www.tax.virginia.gov/individual-income-tax", target="_blank", "https://www.tax.virginia.gov/individual-income-tax")),
+                                   tags$li(strong("Walker, K. (2023)."), em("tigris: Load Census TIGER/Line Shapefiles (R package version 2.2.1)."), tags$a(href="https://cran.r-project.org/package=tigris", target="_blank", "https://cran.r-project.org/package=tigris")),
+                                   tags$li(strong("Wickham, H., et al. (2023)."), em("dplyr: A Grammar of Data Manipulation (R package version 1.1.4)."), tags$a(href="https://dplyr.tidyverse.org", target="_blank", "https://dplyr.tidyverse.org")),
+                                   tags$li(strong("Wickham, H., et al. (2023)."), em("tidyr: Tidy Messy Data (R package version 1.3.1)."), tags$a(href="https://tidyr.tidyverse.org", target="_blank", "https://tidyr.tidyverse.org")), 
+                                   tags$li(strong("U.S. Bureau of Labor Statistics. (2023)."), em("Consumer Expenditure Survey (CEX)."), "Retrieved from ", tags$a(href="https://www.bls.gov/cex/", target="_blank", "https://www.bls.gov/cex/")),
+                                   tags$li(strong("Federal Highway Administration. (2023)."), em("Highway Statistics Series: Average Annual Miles per Driver by Age Group."), "Retrieved from ", tags$a(href="https://www.fhwa.dot.gov/policyinformation/statistics.cfm", target="_blank", "https://www.fhwa.dot.gov/policyinformation/statistics.cfm")), 
+                                   tags$li(strong("Virginia Transit Agencies."), em("Local transit fare schedules."), "Data retrieved from websites of WMATA, GRTC, HRT, GLTC, BRITE, CAT, and Blacksburg Transit, July 2025.")
+                                   
                            )
                        )
                    )
@@ -447,24 +583,58 @@ ui <- fluidPage(
           
           tabPanel("Results",
                    div(class = "content-container",
-                       div(class = "about-section",
-                           h2("Project Results"),
-                           p("This section will present the key findings and results from our cost of living analysis."),
-                           p("Detailed comparisons between minimum and average costs across different regions of Virginia will be provided here, along with visualizations highlighting significant disparities and trends."),
-                           div(class="future-text-section",
-                               h4("Analysis Coming Soon"),
-                               p("This area is reserved for future text, charts, and data tables that summarize our findings.")
-                           )
-                       )
+                       h2("Project Results"),
+                       
+                       h4(strong("Introduction: The Challenge of Affordability in Virginia")),
+                       p("Virginia is a diverse state, with large urban centers, wide suburbs, and rural areas. But this diversity creates big differences in the cost of living. It’s hard for families, businesses, and policymakers to truly understand what it costs to live comfortably in different parts of the Commonwealth. This project aims to fix that problem. We built a detailed, data-driven tool that lets anyone explore and compare the cost of living across all 133 localities in Virginia."),
+                       tags$hr(),
+                       
+                       h4(strong("Project Goals")),
+                       p("Our work was guided by a central set of questions that this dashboard helps answer: How does the cost of living change across Virginia’s regions? What are the real differences in minimum and average costs between urban, suburban, and rural areas? Which specific expenses, like housing, healthcare, childcare, or transportation, drive these differences the most? Is the typical income in each locality enough to cover the cost of living? Where in Virginia do households have extra income after covering basic costs, and where are they falling short?"),
+                       tags$hr(),
+                       
+                       h4(strong("Our Approach: Modeling the Cost of Living")),
+                       p("To answer these questions, we created a full cost-of-living model using public data from 2023. We estimated two scenarios: Minimum Cost, a basic survival-level budget, and Average Cost, a more stable and sustainable living budget."),
+                       p("We did this for six common types of households. The model uses data from reliable sources like the U.S. Census Bureau, HUD, and the USDA. We cleaned and standardized the data and built it into an interactive dashboard, where users can explore the total cost of living, and its parts, for any Virginia locality."),
+                       p(em("You can find full details on our data sources and how we made our estimates in the \"Methodology\" tab.")),
+                       tags$hr(),
+                       
+                       h4(strong("Key Findings")),
+                       p("Our analysis shows a clear divide in the cost of living across the state. Northern Virginia has the highest costs, followed by Central Virginia and Hampton Roads. The most affordable areas are mostly in the Shenandoah Valley, Southside, and Southwest Virginia."),
+                       p("This means where a family lives has a big impact on their budget. For example, in Fairfax or Arlington, the monthly cost of living for a family of four can easily go over $10,000. In contrast, that same family in a Southwest county may need less than half that amount. This shows that Virginia is not one single economy, it’s a mix of many different regional economies with different challenges."),
+                       p("Most costs are higher in urban areas, but housing shows the biggest difference. For example, in Accomack County, average housing costs for a family of four are about $1,571 per month. But in Fairfax or Arlington, that can be two to three times higher. Affordable housing is the biggest factor that affects regional cost differences in Virginia. For families with young children, childcare is the next biggest factor. In many high-cost areas, monthly childcare for two kids can be over $2,000, more than the total housing cost in some lower-cost areas."),
+                       p("One of our most important findings is the gap between what people earn and what it actually costs to live. In the “Income & Cost Gap” tab, we show that for many families, especially those with children, average local wages are often not enough to afford a modest, stable life."),
+                       p("For example, in many counties, including places like Virginia Beach and Chesterfield, a two-parent, two-child family earns much less than what they need to cover monthly expenses. The problem is even worse for seniors. In Nottoway County, two adults aged 65+ living on a minimum budget have average costs of $6,554 per month, but their income is only $3,817, leaving a $2,737 monthly deficit. This shows that even families earning “average” wages face serious financial pressure. Those living on lower or fixed incomes are in an even more difficult position."),
+                       tags$hr(),
+                       
+                       h4(strong("Limitations and Data Gaps")),
+                       p("It is important to acknowledge the limitations of this model. The estimates for healthcare and elder care rely on income-based proxies because direct, county-level cost data is not publicly available. Similarly, technology costs are based on national benchmarks. Furthermore, the data represents a snapshot from 2023 and does not account for ongoing inflation. These gaps represent the need for more granular, localized public data on the true costs faced by Virginia families."),
+                       tags$hr(),
+                       
+                       h4(strong("Policy Implications: How This Tool Can Help")),
+                       p(strong("Targeted and Localized Solutions are Essential:"), " A one-size-fits-all approach to economic policy is insufficient for a state as diverse as Virginia. This tool allows leaders to see the specific cost drivers in their community, whether it’s housing in the north or low wages in the south, and design appropriately tailored solutions."),
+                       p(strong("Affordability is a Statewide Issue:"), " The dashboard shows that while the reasons differ, the gap between income and expenses is a challenge in both high-cost urban areas and low-wage rural areas. Addressing this requires a dual focus on increasing wages and managing key costs."),
+                       p(strong("Data Can Drive Change:"), " By providing clear, accessible data, this dashboard can help advocates, non-profits, and local governments make a stronger, evidence-based case for policies that support economic stability, such as investments in affordable housing, childcare subsidies, and workforce development."),
+                       tags$hr(),
+                       
+                       h4(strong("Conclusion")),
+                       p("The Virginia Cost of Living Dashboard turns complex data into an easy-to-use tool that helps us understand affordability across the state. It shows the real financial challenges families face in each locality and reveals where economic security is hardest to reach. By making these differences visible, this tool gives families the information they need to plan, and gives leaders the data they need to create a more affordable and fair Virginia."),
+                       
                    )
           )
+          
         )
       )
   )
 )
 
-# --- Server Logic ---
+
+# --- Server Logic ---------------------------------
+
 server <- function(input, output, session) {
+  
+  # Call the server logic from the new module file
+  gap_analysis_server("gap_module", gap_data_full = reactive({ gap_data_full }))
   
   min_cost_data_for_table_filtered <- reactive({ req(input$county_min_table); all_costs_long_for_table %>% filter(County == input$county_min_table, Type == "min") })
   avg_cost_data_for_table_filtered <- reactive({ req(input$county_avg_table); all_costs_long_for_table %>% filter(County == input$county_avg_table, Type == "avg") })
@@ -496,18 +666,43 @@ server <- function(input, output, session) {
   output$min_table <- renderTable({ generate_table_display(min_cost_data_for_table_filtered()) %>% format_cost_table() }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   output$avg_table <- renderTable({ generate_table_display(avg_cost_data_for_table_filtered()) %>% format_cost_table() }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
+  # Render the dynamic title for the minimum cost table
+  output$min_table_title <- renderUI({
+    req(input$county_min_table)
+    tags$h4(style = "font-weight: bold; color: var(--title-color); text-align: center; font-size: 20px;", 
+            paste("Household Minimum Monthly Cost:", input$county_min_table, "County, Virginia")
+    )
+  })
+  
+  # Render the dynamic title for the average cost table
+  output$avg_table_title <- renderUI({
+    req(input$county_avg_table)
+    tags$h4(style = "font-weight: bold; color: var(--title-color); text-align: center; font-size: 20px;", 
+            paste("Household Average Monthly Cost:", input$county_avg_table, "County, Virginia")
+    )
+  })
+  
   output$min_plot <- renderPlotly({
     req(input$county_min_plot, input$family_structure_min)
-    plot_data <- all_costs_long_for_table %>% filter(County == input$county_min_plot, Type == "min", FamilyStructure == input$family_structure_min)
+    plot_data <- all_costs_long_for_table %>%
+      filter(
+        County == input$county_min_plot,
+        Type == "min",
+        FamilyStructure == input$family_structure_min,
+        Cost > 0  # Hide bars where the cost is $0
+      )
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
+    
+    # Convert CostVariable to a factor to maintain order and drop unused levels
+    plot_data$CostVariable <- factor(plot_data$CostVariable, levels = cost_variables_list)
+    
     p <- ggplot(plot_data, aes(x = CostVariable, y = Cost, text = paste0(CostVariable, ": $", format(round(Cost, 0), nsmall = 0, big.mark = ",")))) +
       geom_col(aes(fill = CostVariable), width = 0.9) +
       scale_fill_viridis_d(option = "cividis", guide = "none") +
-      scale_x_discrete(limits = cost_variables_list) +
       labs(title = paste("Minimum Monthly Cost Breakdown for", input$family_structure_min, "in", input$county_min_plot), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
-    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
     
+    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
   })
   
   output$min_map <- renderLeaflet({
@@ -525,18 +720,17 @@ server <- function(input, output, session) {
           Type == "min"
         )
       
-      # Create a complete, ordered data frame for all cost variables.
-      # This ensures all categories are present, NAs are handled, and order is maintained.
-      popup_df <- tibble(CostVariable = cost_variables_list) %>%
-        left_join(county_data %>% select(CostVariable, Cost), by = "CostVariable") %>%
-        mutate(Cost = replace_na(Cost, 0))
+      # Calculate total cost before filtering
+      total_cost <- sum(county_data$Cost, na.rm = TRUE)
       
-      # Calculate total cost and percentage contribution for each category.
-      total_cost <- sum(popup_df$Cost)
-      popup_df <- popup_df %>%
-        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0)
+      # Prepare data for popup, removing any zero-cost items
+      popup_df <- county_data %>%
+        filter(Cost > 0) %>%
+        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0) %>%
+        mutate(CostVariable = factor(CostVariable, levels = cost_variables_list)) %>%
+        arrange(CostVariable)
       
-      # Format each line for the popup, e.g., "Housing: $1,500 (22%)"
+      # Format each line for the popup
       breakdown_lines <- sprintf(
         "%s: $%s (%s%%)",
         popup_df$CostVariable,
@@ -576,18 +770,28 @@ server <- function(input, output, session) {
       addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data", opacity = 1)
   })
   
+  
   output$avg_plot <- renderPlotly({
     req(input$county_avg_plot, input$family_structure_avg)
-    plot_data <- all_costs_long_for_table %>% filter(County == input$county_avg_plot, Type == "avg", FamilyStructure == input$family_structure_avg)
+    plot_data <- all_costs_long_for_table %>%
+      filter(
+        County == input$county_avg_plot,
+        Type == "avg",
+        FamilyStructure == input$family_structure_avg,
+        Cost > 0  # Hide bars where the cost is $0
+      )
     validate(need(nrow(plot_data) > 0, "No cost data available for this selection to plot."))
+    
+    # Convert CostVariable to a factor to maintain order and drop unused levels
+    plot_data$CostVariable <- factor(plot_data$CostVariable, levels = cost_variables_list)
+    
     p <- ggplot(plot_data, aes(x = CostVariable, y = Cost, text = paste0(CostVariable, ": $", format(round(Cost, 0), nsmall = 0, big.mark = ",")))) +
       geom_col(aes(fill = CostVariable), width = 0.9) +
       scale_fill_viridis_d(option = "plasma", guide = "none") +
-      scale_x_discrete(limits = cost_variables_list) +
       labs(title = paste("Average Monthly Cost Breakdown for", input$family_structure_avg, "in", input$county_avg_plot), y = "Monthly Cost ($)", x = "Cost Category") +
       theme_minimal() + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
-    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
     
+    ggplotly(p, tooltip = "text") %>% layout(showlegend = FALSE)
   })
   
   output$avg_map <- renderLeaflet({
@@ -605,18 +809,17 @@ server <- function(input, output, session) {
           Type == "avg"
         )
       
-      # Create a complete, ordered data frame for all cost variables.
-      # This ensures all categories are present, NAs are handled, and order is maintained.
-      popup_df <- tibble(CostVariable = cost_variables_list) %>%
-        left_join(county_data %>% select(CostVariable, Cost), by = "CostVariable") %>%
-        mutate(Cost = replace_na(Cost, 0))
+      # Calculate total cost before filtering
+      total_cost <- sum(county_data$Cost, na.rm = TRUE)
       
-      # Calculate total cost and percentage contribution for each category.
-      total_cost <- sum(popup_df$Cost)
-      popup_df <- popup_df %>%
-        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0)
+      # Prepare data for popup, removing any zero-cost items
+      popup_df <- county_data %>%
+        filter(Cost > 0) %>%
+        mutate(Percentage = if (total_cost > 0) (Cost / total_cost) * 100 else 0) %>%
+        mutate(CostVariable = factor(CostVariable, levels = cost_variables_list)) %>%
+        arrange(CostVariable)
       
-      # Format each line for the popup, e.g., "Housing: $1,500 (22%)"
+      # Format each line for the popup
       breakdown_lines <- sprintf(
         "%s: $%s (%s%%)",
         popup_df$CostVariable,
@@ -657,7 +860,7 @@ server <- function(input, output, session) {
   })
   
   
-  # --- New Server Logic for Custom Comparison ---
+  # --- The Server Logic for Custom Comparison ---
   
   map_family_structure <- function(adults, children, elders) {
     if (elders > 0) {
@@ -743,6 +946,104 @@ server <- function(input, output, session) {
     format_comparison_table(result_df)
   }, striped = FALSE, hover = TRUE, spacing = "xs", width = "100%", rownames = FALSE)
   
+  # Render the UI for the minimum cost comparison summary
+  output$comparison_summary_min <- renderUI({
+    # Require at least 2 counties before trying to render
+    req(input$compare_counties_min, length(input$compare_counties_min) >= 2)
+    
+    # Recalculate the raw data needed for the summary
+    raw_df <- calculate_custom_cost(
+      "min", input$compare_counties_min, input$num_adults_min,
+      input$num_children_min, input$num_childcare_min, input$num_elders_min
+    )
+    
+    generate_comparison_summary(raw_df)
+  })
+  
+  # Render the UI for the average cost comparison summary
+  output$comparison_summary_avg <- renderUI({
+    # Require at least 2 counties before trying to render
+    req(input$compare_counties_avg, length(input$compare_counties_avg) >= 2)
+    
+    # Recalculate the raw data needed for the summary
+    raw_df <- calculate_custom_cost(
+      "avg", input$compare_counties_avg, input$num_adults_avg,
+      input$num_children_avg, input$num_childcare_avg, input$num_elders_avg
+    )
+    
+    generate_comparison_summary(raw_df)
+  })
+  
+  # ---Generate_comparison_summary function -------
+  
+  generate_comparison_summary <- function(cost_data_df) {
+    # cost_data_df is the raw numeric output from calculate_custom_cost()
+    
+    # Check if there are 2 or 3 counties selected
+    num_counties <- ncol(cost_data_df) - 1 
+    if (!num_counties %in% c(2, 3)) {
+      return(NULL)
+    }
+    
+    # Calculate monthly totals from the raw numeric data
+    monthly_totals <- cost_data_df %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE))
+    
+    # Get names and values to find the min/max
+    cost_summary <- tibble(
+      county = colnames(monthly_totals),
+      cost = as.numeric(monthly_totals[1, ])
+    ) %>% arrange(cost)
+    
+    # Exit if there's no difference in cost
+    if (max(cost_summary$cost) - min(cost_summary$cost) <= 0) {
+      return(NULL)
+    }
+    
+    # Helper for formatting numbers as currency
+    f_curr <- function(val) paste0("$", format(round(val), nsmall = 0, big.mark = ","))
+    
+    # --- Logic for 3 Counties ---
+    if (nrow(cost_summary) == 3) {
+      least <- cost_summary[1,]
+      middle <- cost_summary[2,]
+      most <- cost_summary[3,]
+      
+      # Calculate pairwise differences
+      diff_high_mid <- most$cost - middle$cost
+      diff_mid_low <- middle$cost - least$cost
+      diff_high_low <- most$cost - least$cost
+      
+      # Created a bulleted list for a clear, descriptive summary
+      summary_content <- tags$ul(
+        tags$li(HTML(paste0("The monthly cost is highest in ", strong(most$county), " (", f_curr(most$cost), ") and lowest in ", strong(least$county), " (", f_curr(least$cost), ")."))),
+        tags$li(HTML(paste0("This household would spend ", strong(f_curr(diff_high_mid)), " more per month in ", strong(most$county), " compared to ", strong(middle$county), "."))),
+        tags$li(HTML(paste0("Living in ", strong(middle$county), " costs ", strong(f_curr(diff_mid_low)), " more per month than in ", strong(least$county), "."))),
+        tags$li(HTML(paste0("The total difference between the most and least expensive locations is ", strong(f_curr(diff_high_low)), " per month, which amounts to an annual difference of ", strong(f_curr(diff_high_low * 12)), ".")))
+      )
+      
+      # --- Logic for 2 Counties ---
+    } else { 
+      least <- cost_summary[1,]
+      most <- cost_summary[2,]
+      
+      diff_monthly <- most$cost - least$cost
+      diff_annual <- diff_monthly * 12
+      
+      summary_content <- HTML(paste0(
+        "For this household, the monthly cost is ",
+        strong(f_curr(diff_monthly)), " higher in ", strong(most$county),
+        " than in ", strong(least$county), ". ",
+        "Annually, this adds up to a difference of ", strong(f_curr(diff_annual)), "."
+      ))
+    }
+    
+    # Return the text inside a styled div
+    div(class = "comparison-summary-box", summary_content)
+  }
 }
-
 shinyApp(ui = ui, server = server)
+
+
+
+
