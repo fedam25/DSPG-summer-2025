@@ -5,7 +5,7 @@ library(tidyverse)
 library(scales) 
 
 # --- UI Function for the Gap Analysis Module ---
-gap_analysis_ui <- function(id) {
+gap_analysis_ui <- function(id, family_structures_choices) {
   ns <- NS(id) # Create a namespace
   
   # This tagList contains all the UI elements for the tab
@@ -30,8 +30,8 @@ gap_analysis_ui <- function(id) {
                              choices = c("Minimum" = "min", "Average" = "avg"), 
                              selected = "avg"),
                  selectInput(ns("gap_family_structure"), "Select Family Structure:", 
-                             choices = family_structures_list, # This global variable must be available
-                             selected = family_structures_list[4]),
+                             choices = family_structures_choices, # This now uses the argument
+                             selected = family_structures_choices[4]),
                  div(class = "controls-info-box",
                      p("Use the dropdown menus to explore the financial gap across Virginia."),
                      p(strong("Cost/Income Level:"), " Choose 'Minimum' to compare survival costs with minimum wage data, or 'Average' to compare typical costs with average wage data."),

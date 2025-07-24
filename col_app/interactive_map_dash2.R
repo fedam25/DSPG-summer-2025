@@ -454,7 +454,7 @@ ui <- fluidPage(
           
           # --- This tabPanel now calls the UI from the new module file
           tabPanel("Income & Cost Gap",
-                   gap_analysis_ui("gap_module")
+                   gap_analysis_ui("gap_module", family_structures_choices = family_structures_list)
           ),
           
           tabPanel("Methodology",
@@ -942,7 +942,7 @@ server <- function(input, output, session) {
   })
   
   # ---Generate_comparison_summary function -------
-
+  
   generate_comparison_summary <- function(cost_data_df) {
     # cost_data_df is the raw numeric output from calculate_custom_cost()
     
