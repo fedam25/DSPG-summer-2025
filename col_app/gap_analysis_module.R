@@ -148,7 +148,7 @@ gap_analysis_server <- function(id, gap_data_full) {
       
       tags$div(
         h4(strong("Understanding the Financial Gap")),
-        p("The visualizations on this page reveal a critical story about economic well-being across Virginia. The monthly gap, the difference between income and the cost of living—shows whether a typical household in a county can make ends meet. A ", strong("green county (surplus)"), " suggests that the ", income_type, " is enough to cover the estimated ", scenario_type, " costs. In contrast, a ", strong("red county (deficit)"), " indicates that the income is not sufficient, forcing households to face difficult financial choices."),
+        p("The visualizations on this page reveal a critical story about economic well-being across Virginia. The monthly gap, the difference between income and the cost of living, shows whether a typical household in a county can make ends meet. A ", strong("green county (surplus)"), " suggests that the ", income_type, " is enough to cover the estimated ", scenario_type, " costs. In contrast, a ", strong("red county (deficit)"), " indicates that the income is not sufficient, forcing households to face difficult financial choices."),
         h4("What Drives the Deficit in Red Counties?"),
         p("Counties appear red for different reasons, highlighting diverse economic challenges across the state:"),
         tags$ul(

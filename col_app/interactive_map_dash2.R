@@ -579,7 +579,7 @@ ui <- fluidPage(
                            )
                        )
                    )
-          ),
+          ), 
           
           tabPanel("Results",
                    div(class = "content-container",
