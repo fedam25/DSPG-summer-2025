@@ -122,17 +122,16 @@ gap_analysis_server <- function(id, gap_data_full) {
     output$deficit_plot <- renderPlotly({
       plot_data <- filtered_gap_data() %>%
         filter(!is.na(MonthlyGap) & MonthlyGap < 0) %>%
-     
         distinct(NAME, .keep_all = TRUE) %>%
         slice_min(order_by = MonthlyGap, n = 10)
       
       validate(need(nrow(plot_data) > 0, "No counties with a deficit for this selection."))
       
-      p <- ggplot(plot_data, aes(x = MonthlyGap, y = reorder(NAME, MonthlyGap, decreasing = FALSE), text = paste0(NAME, ": ", dollar(MonthlyGap, accuracy = 1)))) +
+      # The 'reorder' function below is corrected to sort by the magnitude of the deficit
+      p <- ggplot(plot_data, aes(x = MonthlyGap, y = reorder(NAME, -MonthlyGap), text = paste0(NAME, ": ", dollar(MonthlyGap, accuracy = 1)))) +
         geom_col(fill = "#D9534F") + 
         labs(title = "Top Largest Deficits", x = "Monthly Deficit ($)", y = "") +
         theme_minimal() + 
-        # FIX 2: Set explicit limits on the x-axis to make bars stretch.
         scale_x_continuous(labels = dollar, limits = c(min(plot_data$MonthlyGap) * 1.05, 0))
       ggplotly(p, tooltip = "text")
     })

@@ -20,8 +20,8 @@ virginia_county_names <- sort(unique(va_counties$NAME))
 
 # Define the lists that structure the dashboard's table and data processing.
 family_structures_list <- c(
-  "1 Adult: 19–50 Years",
-  "2 Adults: 19–50 Years",
+  "1 Adult: 19–64 Years",
+  "2 Adults: 19–64 Years",
   "1 Adult + 1 Child",
   "2 Adults + 2 Children",
   "1 Adult: 65+",
@@ -60,8 +60,8 @@ minimum_wage <- read_csv("minimum_wage.csv")
 # Function to standardize column names
 standardize_cols <- function(df) {
   df %>%
-    rename_with(~"1 Adult: 19–50 Years", .cols = matches("1 Adult.*19-50.*")) %>%
-    rename_with(~"2 Adults: 19–50 Years", .cols = matches("2 Adults.*19-50.*")) %>%
+    rename_with(~"1 Adult: 19–64 Years", .cols = matches("1 Adult.*19-64.*")) %>%
+    rename_with(~"2 Adults: 19–64 Years", .cols = matches("2 Adults.*19-64.*")) %>%
     rename_with(~"1 Adult + 1 Child", .cols = matches("1 Adult.*1 Child")) %>%
     rename_with(~"2 Adults + 2 Children", .cols = matches("2 Adults.*2 Children")) %>%
     rename_with(~"1 Adult: 65+", .cols = matches("1 Adult.*65+")) %>%
@@ -281,7 +281,7 @@ ui <- fluidPage(
                        p("Both perspectives are important. The minimum cost can highlight where people are most economically vulnerable, while the average cost shows what’s needed for a modest, stable life."),
                        
                        div(class = "section-title", "What’s Included"),
-                       p("This dashboard breaks down the total monthly cost of living into categories like housing, food, transportation, healthcare, taxes, childcare, elder care, technology, and miscellaneous expenses. These estimates are calculated separately for six common family structures: 1 Adult: 19-50 Years, 2 Adults: 19-50 Years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adults 65+, and 2 Adults 65+."),
+                       p("This dashboard breaks down the total monthly cost of living into categories like housing, food, transportation, healthcare, taxes, childcare, elder care, technology, and miscellaneous expenses. These estimates are calculated separately for six common family structures: 1 Adult: 19-64 Years, 2 Adults: 19-64 Years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adults 65+, and 2 Adults 65+."),
                        
                        div(class = "section-title", "How to Use This Tool"),
                        tags$ol(
@@ -313,7 +313,7 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
-                                uiOutput("min_table_title"), # This line is new
+                                uiOutput("min_table_title"), 
                                 div(class = "table-container", tableOutput("min_table"))
                          )
                        ),
@@ -354,7 +354,7 @@ ui <- fluidPage(
                        p(class = "section-desc", "Build a custom family profile and select up to 3 locations to compare estimated costs. Note: This is an estimate based on the closest available data profile."),
                        fluidRow(
                          column(3,
-                                numericInput("num_adults_min", "Number of Adults (19-50):", 1, min = 0, max = 3, width = "100%"),
+                                numericInput("num_adults_min", "Number of Adults (19-64):", 1, min = 0, max = 3, width = "100%"),
                                 numericInput("num_children_min", "Number of Children:", 1, min = 0, max = 4, width = "100%"),
                                 numericInput("num_childcare_min", "Children in Childcare:", 0, min = 0, max = 4, width = "100%"),
                                 numericInput("num_elders_min", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
@@ -391,7 +391,7 @@ ui <- fluidPage(
                                 )
                          ),
                          column(9,
-                                uiOutput("avg_table_title"), # This line is new
+                                uiOutput("avg_table_title"), 
                                 div(class = "table-container", tableOutput("avg_table"))
                          )
                        ),
@@ -431,7 +431,7 @@ ui <- fluidPage(
                        p(class = "section-desc", "Build a custom family profile and select up to 3 locations to compare estimated costs. Note: This is an estimate based on the closest available data profile."),
                        fluidRow(
                          column(3,
-                                numericInput("num_adults_avg", "Number of Adults (19-50):", 1, min = 0, max = 3, width = "100%"),
+                                numericInput("num_adults_avg", "Number of Adults (19-64):", 1, min = 0, max = 3, width = "100%"),
                                 numericInput("num_children_avg", "Number of Children:", 1, min = 0, max = 4, width = "100%"),
                                 numericInput("num_childcare_avg", "Children in Childcare:", 0, min = 0, max = 4, width = "100%"),
                                 numericInput("num_elders_avg", "Number of Elders (65+):", 0, min = 0, max = 2, width = "100%"),
@@ -462,7 +462,7 @@ ui <- fluidPage(
                        div(class = "methodology-section",
                            withMathJax(),
                            div(class = "section-title", "Methodology Overview"),
-                           p("Our methodology estimates the monthly cost of living across Virginia's 133 counties and independent cities using the data sources from 2023. We compiled data from authoritative national and state-level sources for nine essential cost categories (housing, food, transportation, taxes, healthcare, childcare, elder care, technology, and Miscellaneuos). For each category, we developed both a 'Minimum Cost' and an 'Average Cost' estimate to represent a basic survival budget versus a more typical, stable living standard. Costs were then tailored to six common family structures (1 Adult 19-50 years, 2 Adults 19-50 years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adult 65+, and 2 Adults 65+) to reflect how expenses change with household size and composition. Methodologies that rely on proxies (The Healthcare and Elder Care data), such as scaling by local income, do so because direct, county-level data for that specific cost is unavailable. This approach allows for consistent and reasonable estimates across all localities."),
+                           p("Our methodology estimates the monthly cost of living across Virginia's 133 counties and independent cities using the data sources from 2023. We compiled data from authoritative national and state-level sources for nine essential cost categories (housing, food, transportation, taxes, healthcare, childcare, elder care, technology, and Miscellaneuos). For each category, we developed both a 'Minimum Cost' and an 'Average Cost' estimate to represent a basic survival budget versus a more typical, stable living standard. Costs were then tailored to six common family structures (1 Adult 19-64 years, 2 Adults 19-64 years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adult 65+, and 2 Adults 65+) to reflect how expenses change with household size and composition. Methodologies that rely on proxies (The Healthcare and Elder Care data), such as scaling by local income, do so because direct, county-level data for that specific cost is unavailable. This approach allows for consistent and reasonable estimates across all localities."),
                            
                            div(class = "section-title", "Our Variables"),
                            
@@ -879,7 +879,7 @@ server <- function(input, output, session) {
       else { if (elders >= 2) "2 Adults: 65+" else "1 Adult: 65+" }
     } else {
       if (children > 0) { if (adults >= 2) "2 Adults + 2 Children" else "1 Adult + 1 Child" } 
-      else { if (adults >= 2) "2 Adults: 19–50 Years" else "1 Adult: 19–50 Years" }
+      else { if (adults >= 2) "2 Adults: 19–64 Years" else "1 Adult: 19–64 Years" }
     }
   }
   
