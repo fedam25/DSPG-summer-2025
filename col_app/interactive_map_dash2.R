@@ -260,39 +260,39 @@ ui <- fluidPage(
           
           tabPanel("Introduction",
                    div(class = "content-container",
-                  
-                           h2("About This Dashboard"),
-                           p("The Virginia Cost of Living Dashboard was created as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in 2025. This tool helps individuals, policymakers, and researchers explore how the cost of living varies across Virginia’s 133 counties and independent cities."),
-                           
-                           p("It includes two views: the minimum cost of living (a basic survival budget) and the average cost of living (a more typical monthly budget). Users can view breakdowns by family structure and customize scenarios to see how costs differ from one place to another."),
-                           p(strong("Important Note:"), " All values in this dashboard are ", strong("nominal"), " and represent the cost of living in ", strong("2023"), ". The estimates are ", strong("not seasonally adjusted"), " and this means that they reflect the average for the year rather than short-term fluctuations."),
-                           
-                           div(class = "section-title", "Why This Matters"),
-                           tags$ul(
-                             tags$li("Families can use this data to plan where to live based on affordability."),
-                             tags$li("Policymakers can make better decisions on living wages, housing policies, and public assistance programs."),
-                             tags$li("Businesses can plan compensation and understand workforce needs."),
-                             tags$li("Researchers can study regional economic disparities across the state.")
-                           ),
-                           
-                           div(class = "section-title", "Minimum vs. Average Costs"),
-                           p("We report both 'Minimum Cost' and 'Average Cost' estimates. The Minimum Cost reflects a no-frills survival budget - the lowest amount needed to cover basic needs. The Average Cost includes a more typical level of spending based on how people actually live, allowing for some discretionary items and comfort."),
-                           
-                           p("Both perspectives are important. The minimum cost can highlight where people are most economically vulnerable, while the average cost shows what’s needed for a modest, stable life."),
-                           
-                           div(class = "section-title", "What’s Included"),
-                           p("This dashboard breaks down the total monthly cost of living into categories like housing, food, transportation, healthcare, taxes, childcare, elder care, technology, and miscellaneous expenses. These estimates are calculated separately for six common family structures: 1 Adult: 19-50 Years, 2 Adults: 19-50 Years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adults 65+, and 2 Adults 65+."),
-                           
-                           div(class = "section-title", "How to Use This Tool"),
-                           tags$ol(
-                             tags$li("Start with this page to understand the goals and features of the dashboard. This page gives you an overview of what this project is about and its purpose."),
-                             tags$li("Go to the 'Minimum Cost' or 'Average Cost' tabs to explore data for different counties and family types. (More instructions are provided on each page.) "),
-                             tags$li("Use the dropdown menus and maps to see how costs vary by location and household structure. The colors on the maps are intenationally used to represent the least expensive (light colors) and the more expensive regions (darker colors) in Virginia."),
-                             tags$li("At the end of the minimum and the average cost tabs, you can compare multiple counties side-by-side or build custom family profiles to see tailored results for your own family size.")
-                           ),
-                           
-                           div(class = "section-title", "Acknowledgement"),
-                           p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone. A huge thanks to Dr. Cary, our faculty advisor, and Renu Ojha, our graduate student advisor.")
+                       
+                       h2("About This Dashboard"),
+                       p("The Virginia Cost of Living Dashboard was created as part of the Virginia Tech Data Science for the Public Good (DSPG) Summer Research Program in 2025. This tool helps individuals, policymakers, and researchers explore how the cost of living varies across Virginia’s 133 counties and independent cities."),
+                       
+                       p("It includes two views: the minimum cost of living (a basic survival budget) and the average cost of living (a more typical monthly budget). Users can view breakdowns by family structure and customize scenarios to see how costs differ from one place to another."),
+                       p(strong("Important Note:"), " All values in this dashboard are ", strong("nominal"), " and represent the cost of living in ", strong("2023"), ". The estimates are ", strong("not seasonally adjusted"), " and this means that they reflect the average for the year rather than short-term fluctuations."),
+                       
+                       div(class = "section-title", "Why This Matters"),
+                       tags$ul(
+                         tags$li("Families can use this data to plan where to live based on affordability."),
+                         tags$li("Policymakers can make better decisions on living wages, housing policies, and public assistance programs."),
+                         tags$li("Businesses can plan compensation and understand workforce needs."),
+                         tags$li("Researchers can study regional economic disparities across the state.")
+                       ),
+                       
+                       div(class = "section-title", "Minimum vs. Average Costs"),
+                       p("We report both 'Minimum Cost' and 'Average Cost' estimates. The Minimum Cost reflects a no-frills survival budget - the lowest amount needed to cover basic needs. The Average Cost includes a more typical level of spending based on how people actually live, allowing for some discretionary items and comfort."),
+                       
+                       p("Both perspectives are important. The minimum cost can highlight where people are most economically vulnerable, while the average cost shows what’s needed for a modest, stable life."),
+                       
+                       div(class = "section-title", "What’s Included"),
+                       p("This dashboard breaks down the total monthly cost of living into categories like housing, food, transportation, healthcare, taxes, childcare, elder care, technology, and miscellaneous expenses. These estimates are calculated separately for six common family structures: 1 Adult: 19-50 Years, 2 Adults: 19-50 Years, 1 Adult 1 Child, 2 Adults 2 Children, 1 Adults 65+, and 2 Adults 65+."),
+                       
+                       div(class = "section-title", "How to Use This Tool"),
+                       tags$ol(
+                         tags$li("Start with this page to understand the goals and features of the dashboard. This page gives you an overview of what this project is about and its purpose."),
+                         tags$li("Go to the 'Minimum Cost' or 'Average Cost' tabs to explore data for different counties and family types. (More instructions are provided on each page.) "),
+                         tags$li("Use the dropdown menus and maps to see how costs vary by location and household structure. The colors on the maps are intenationally used to represent the least expensive (light colors) and the more expensive regions (darker colors) in Virginia."),
+                         tags$li("At the end of the minimum and the average cost tabs, you can compare multiple counties side-by-side or build custom family profiles to see tailored results for your own family size.")
+                       ),
+                       
+                       div(class = "section-title", "Acknowledgement"),
+                       p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone. A huge thanks to Dr. Cary, our faculty advisor, and Renu Ojha, our graduate student advisor.")
                        
                    )
           ),
@@ -583,42 +583,42 @@ ui <- fluidPage(
           
           tabPanel("Results",
                    div(class = "content-container",
-                           h2("Project Results"),
-                           
-                           h4(strong("Introduction: The Challenge of Affordability in Virginia")),
-                           p("Virginia is a diverse state, with large urban centers, wide suburbs, and rural areas. But this diversity creates big differences in the cost of living. It’s hard for families, businesses, and policymakers to truly understand what it costs to live comfortably in different parts of the Commonwealth. This project aims to fix that problem. We built a detailed, data-driven tool that lets anyone explore and compare the cost of living across all 133 localities in Virginia."),
-                           tags$hr(),
-                           
-                           h4(strong("Project Goals")),
-                           p("Our work was guided by a central set of questions that this dashboard helps answer: How does the cost of living change across Virginia’s regions? What are the real differences in minimum and average costs between urban, suburban, and rural areas? Which specific expenses, like housing, healthcare, childcare, or transportation, drive these differences the most? Is the typical income in each locality enough to cover the cost of living? Where in Virginia do households have extra income after covering basic costs, and where are they falling short?"),
-                           tags$hr(),
-                           
-                           h4(strong("Our Approach: Modeling the Cost of Living")),
-                           p("To answer these questions, we created a full cost-of-living model using public data from 2023. We estimated two scenarios: Minimum Cost, a basic survival-level budget, and Average Cost, a more stable and sustainable living budget."),
-                           p("We did this for six common types of households. The model uses data from reliable sources like the U.S. Census Bureau, HUD, and the USDA. We cleaned and standardized the data and built it into an interactive dashboard, where users can explore the total cost of living, and its parts, for any Virginia locality."),
-                           p(em("You can find full details on our data sources and how we made our estimates in the \"Methodology\" tab.")),
-                           tags$hr(),
-                           
-                           h4(strong("Key Findings")),
-                           p("Our analysis shows a clear divide in the cost of living across the state. Northern Virginia has the highest costs, followed by Central Virginia and Hampton Roads. The most affordable areas are mostly in the Shenandoah Valley, Southside, and Southwest Virginia."),
-                           p("This means where a family lives has a big impact on their budget. For example, in Fairfax or Arlington, the monthly cost of living for a family of four can easily go over $10,000. In contrast, that same family in a Southwest county may need less than half that amount. This shows that Virginia is not one single economy, it’s a mix of many different regional economies with different challenges."),
-                           p("Most costs are higher in urban areas, but housing shows the biggest difference. For example, in Accomack County, average housing costs for a family of four are about $1,571 per month. But in Fairfax or Arlington, that can be two to three times higher. Affordable housing is the biggest factor that affects regional cost differences in Virginia. For families with young children, childcare is the next biggest factor. In many high-cost areas, monthly childcare for two kids can be over $2,000, more than the total housing cost in some lower-cost areas."),
-                           p("One of our most important findings is the gap between what people earn and what it actually costs to live. In the “Income & Cost Gap” tab, we show that for many families, especially those with children, average local wages are often not enough to afford a modest, stable life."),
-                           p("For example, in many counties, including places like Virginia Beach and Chesterfield, a two-parent, two-child family earns much less than what they need to cover monthly expenses. The problem is even worse for seniors. In Nottoway County, two adults aged 65+ living on a minimum budget have average costs of $6,554 per month, but their income is only $3,817, leaving a $2,737 monthly deficit. This shows that even families earning “average” wages face serious financial pressure. Those living on lower or fixed incomes are in an even more difficult position."),
-                           tags$hr(),
-                           
-                           h4(strong("Limitations and Data Gaps")),
-                           p("It is important to acknowledge the limitations of this model. The estimates for healthcare and elder care rely on income-based proxies because direct, county-level cost data is not publicly available. Similarly, technology costs are based on national benchmarks. Furthermore, the data represents a snapshot from 2023 and does not account for ongoing inflation. These gaps represent the need for more granular, localized public data on the true costs faced by Virginia families."),
-                           tags$hr(),
-                           
-                           h4(strong("Policy Implications: How This Tool Can Help")),
-                           p(strong("Targeted and Localized Solutions are Essential:"), " A one-size-fits-all approach to economic policy is insufficient for a state as diverse as Virginia. This tool allows leaders to see the specific cost drivers in their community, whether it’s housing in the north or low wages in the south, and design appropriately tailored solutions."),
-                           p(strong("Affordability is a Statewide Issue:"), " The dashboard shows that while the reasons differ, the gap between income and expenses is a challenge in both high-cost urban areas and low-wage rural areas. Addressing this requires a dual focus on increasing wages and managing key costs."),
-                           p(strong("Data Can Drive Change:"), " By providing clear, accessible data, this dashboard can help advocates, non-profits, and local governments make a stronger, evidence-based case for policies that support economic stability, such as investments in affordable housing, childcare subsidies, and workforce development."),
-                           tags$hr(),
-                           
-                           h4(strong("Conclusion")),
-                           p("The Virginia Cost of Living Dashboard turns complex data into an easy-to-use tool that helps us understand affordability across the state. It shows the real financial challenges families face in each locality and reveals where economic security is hardest to reach. By making these differences visible, this tool gives families the information they need to plan, and gives leaders the data they need to create a more affordable and fair Virginia."),
+                       h2("Project Results"),
+                       
+                       h4(strong("Introduction: The Challenge of Affordability in Virginia")),
+                       p("Virginia is a diverse state, with large urban centers, wide suburbs, and rural areas. But this diversity creates big differences in the cost of living. It’s hard for families, businesses, and policymakers to truly understand what it costs to live comfortably in different parts of the Commonwealth. This project aims to fix that problem. We built a detailed, data-driven tool that lets anyone explore and compare the cost of living across all 133 localities in Virginia."),
+                       tags$hr(),
+                       
+                       h4(strong("Project Goals")),
+                       p("Our work was guided by a central set of questions that this dashboard helps answer: How does the cost of living change across Virginia’s regions? What are the real differences in minimum and average costs between urban, suburban, and rural areas? Which specific expenses, like housing, healthcare, childcare, or transportation, drive these differences the most? Is the typical income in each locality enough to cover the cost of living? Where in Virginia do households have extra income after covering basic costs, and where are they falling short?"),
+                       tags$hr(),
+                       
+                       h4(strong("Our Approach: Modeling the Cost of Living")),
+                       p("To answer these questions, we created a full cost-of-living model using public data from 2023. We estimated two scenarios: Minimum Cost, a basic survival-level budget, and Average Cost, a more stable and sustainable living budget."),
+                       p("We did this for six common types of households. The model uses data from reliable sources like the U.S. Census Bureau, HUD, and the USDA. We cleaned and standardized the data and built it into an interactive dashboard, where users can explore the total cost of living, and its parts, for any Virginia locality."),
+                       p(em("You can find full details on our data sources and how we made our estimates in the \"Methodology\" tab.")),
+                       tags$hr(),
+                       
+                       h4(strong("Key Findings")),
+                       p("Our analysis shows a clear divide in the cost of living across the state. Northern Virginia has the highest costs, followed by Central Virginia and Hampton Roads. The most affordable areas are mostly in the Shenandoah Valley, Southside, and Southwest Virginia."),
+                       p("This means where a family lives has a big impact on their budget. For example, in Fairfax or Arlington, the monthly cost of living for a family of four can easily go over $10,000. In contrast, that same family in a Southwest county may need less than half that amount. This shows that Virginia is not one single economy, it’s a mix of many different regional economies with different challenges."),
+                       p("Most costs are higher in urban areas, but housing shows the biggest difference. For example, in Accomack County, average housing costs for a family of four are about $1,571 per month. But in Fairfax or Arlington, that can be two to three times higher. Affordable housing is the biggest factor that affects regional cost differences in Virginia. For families with young children, childcare is the next biggest factor. In many high-cost areas, monthly childcare for two kids can be over $2,000, more than the total housing cost in some lower-cost areas."),
+                       p("One of our most important findings is the gap between what people earn and what it actually costs to live. In the “Income & Cost Gap” tab, we show that for many families, especially those with children, average local wages are often not enough to afford a modest, stable life."),
+                       p("For example, in many counties, including places like Virginia Beach and Chesterfield, a two-parent, two-child family earns much less than what they need to cover monthly expenses. The problem is even worse for seniors. In Nottoway County, two adults aged 65+ living on a minimum budget have average costs of $6,554 per month, but their income is only $3,817, leaving a $2,737 monthly deficit. This shows that even families earning “average” wages face serious financial pressure. Those living on lower or fixed incomes are in an even more difficult position."),
+                       tags$hr(),
+                       
+                       h4(strong("Limitations and Data Gaps")),
+                       p("It is important to acknowledge the limitations of this model. The estimates for healthcare and elder care rely on income-based proxies because direct, county-level cost data is not publicly available. Similarly, technology costs are based on national benchmarks. Furthermore, the data represents a snapshot from 2023 and does not account for ongoing inflation. These gaps represent the need for more granular, localized public data on the true costs faced by Virginia families."),
+                       tags$hr(),
+                       
+                       h4(strong("Policy Implications: How This Tool Can Help")),
+                       p(strong("Targeted and Localized Solutions are Essential:"), " A one-size-fits-all approach to economic policy is insufficient for a state as diverse as Virginia. This tool allows leaders to see the specific cost drivers in their community, whether it’s housing in the north or low wages in the south, and design appropriately tailored solutions."),
+                       p(strong("Affordability is a Statewide Issue:"), " The dashboard shows that while the reasons differ, the gap between income and expenses is a challenge in both high-cost urban areas and low-wage rural areas. Addressing this requires a dual focus on increasing wages and managing key costs."),
+                       p(strong("Data Can Drive Change:"), " By providing clear, accessible data, this dashboard can help advocates, non-profits, and local governments make a stronger, evidence-based case for policies that support economic stability, such as investments in affordable housing, childcare subsidies, and workforce development."),
+                       tags$hr(),
+                       
+                       h4(strong("Conclusion")),
+                       p("The Virginia Cost of Living Dashboard turns complex data into an easy-to-use tool that helps us understand affordability across the state. It shows the real financial challenges families face in each locality and reveals where economic security is hardest to reach. By making these differences visible, this tool gives families the information they need to plan, and gives leaders the data they need to create a more affordable and fair Virginia."),
                        
                    )
           )
@@ -751,7 +751,6 @@ server <- function(input, output, session) {
     
     costs <- map_data$TotalCost[is.finite(map_data$TotalCost)]
     bins <- unique(quantile(costs, probs = seq(0, 1, length.out = 6), na.rm = TRUE))
-    bins <- unique(round(bins, -3))
     if (length(bins) < 2) {
       bins <- c(min(costs, na.rm = TRUE), max(costs, na.rm = TRUE))
     }
@@ -840,11 +839,23 @@ server <- function(input, output, session) {
     
     costs <- map_data$TotalCost[is.finite(map_data$TotalCost)]
     bins <- unique(quantile(costs, probs = seq(0, 1, length.out = 6), na.rm = TRUE))
-    bins <- unique(round(bins, -3))
     if (length(bins) < 2) {
       bins <- c(min(costs, na.rm = TRUE), max(costs, na.rm = TRUE))
     }
     pal <- colorBin(palette = "viridis", domain = map_data$TotalCost, bins = bins, na.color = "#bdbdbd", reverse = TRUE)
+    
+    leaflet(map_data) %>%
+      addProviderTiles("CartoDB.Positron") %>%
+      setView(lng = -79.0, lat = 37.5, zoom = 7) %>%
+      addPolygons(
+        fillColor = ~pal(TotalCost), weight = 1, color = "white", fillOpacity = 0.8,
+        popup = popup_content,
+        label = ~NAME,
+        labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto"),
+        highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
+      ) %>%
+      addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data", opacity = 1)
+    
     
     leaflet(map_data) %>%
       addProviderTiles("CartoDB.Positron") %>%
