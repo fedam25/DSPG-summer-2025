@@ -1,0 +1,10 @@
+name: interactive_map_dash2
+title:
+username: cost
+account: cost
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15131809
+bundleId: 10686749
+url: https://cost.shinyapps.io/interactive_map_dash2/
+version: 1

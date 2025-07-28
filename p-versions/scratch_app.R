@@ -9,7 +9,7 @@ library(plotly)
 library(readxl)
 library(viridis)
 library(scales) 
-library(rsconnect)
+
 source("gap_analysis_module.R")
 
 options(tigris_use_cache = TRUE)
@@ -292,8 +292,7 @@ ui <- fluidPage(
                        ),
                        
                        div(class = "section-title", "Acknowledgement"),
-                       p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone. A huge thanks to Dr. Cary, our faculty advisor, and Renu Ojha, our graduate student advisor."), 
-                       p("This work is supported by the U.S. Department of Agriculture, National Institute of Food and Agriculture as part of the DATA-ACRE program [grant no. 2022-67037-36639 / project accession no. 2021-10424].")
+                       p("This dashboard was developed by Feda Mohammadi and Julia Vecharello through the Virginia Tech DSPG Summer Research Program. We hope this tool helps make local cost data more accessible and useful to everyone. A huge thanks to Dr. Cary, our faculty advisor, and Renu Ojha, our graduate student advisor.")
                        
                    )
           ),
@@ -856,7 +855,7 @@ server <- function(input, output, session) {
         highlightOptions = highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)
       ) %>%
       addLegend(pal = pal, values = ~TotalCost, title = "Total Monthly Cost", na.label = "No Data", opacity = 1)
-    
+  
     
     leaflet(map_data) %>%
       addProviderTiles("CartoDB.Positron") %>%

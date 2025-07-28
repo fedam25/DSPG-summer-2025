@@ -1,0 +1,10 @@
+name: col_web_app
+title:
+username: cost
+account: cost
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15131750
+bundleId: 10686684
+url: https://cost.shinyapps.io/col_web_app/
+version: 1
