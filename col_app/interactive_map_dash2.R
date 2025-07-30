@@ -480,14 +480,12 @@ ui <- fluidPage(
                                h4(strong("Food")),
                                p("Food costs are based on the U.S. Department of Agriculture's (USDA) official Food Plans, which provide cost estimates for a healthy diet at different budget levels. We calculated the per-person monthly cost and multiplied it by the number of individuals in each family structure."),
                                p("Minimum Cost uses the USDA's 'Thrifty Food Plan.' This plan represents the bare minimum cost for a nutritionally adequate diet and is the basis for the federal SNAP (food stamp) program. And the Average Cost uses the USDA's 'Moderate-Cost Food Plan,' which allows for a wider variety of foods and represents a more realistic budget for a typical middle-class household."),
-                               p("$$\\text{Total Food Cost} = \\text{Per Person Cost} \\times \\text{Household Size}$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Transportation")),
                                p("Transportation costs were estimated using a model that combines car and public transit costs for each county. We used data from the U.S. Census Bureau (ACS) to find how many people drive or take public transit in each area. Then, we estimated a base cost using more realistic vehicle costs ($5,000–$6,000 per year), which better reflect the spending of lower-income households who may drive older cars and travel less."),
                                p("The base cost was multiplied by values that reflect the needs of different family types. For example, a two-adult household has higher costs than a one-adult household, while seniors usually spend less. The Minimum Cost is calculated as 85% of the full value to reflect more conservative travel behavior, while the Average Cost uses the full value."),
-                               p("$$\\text{Minimum Transportation Cost} = \\text{Average Cost} \\times 0.85$$")
                            ),
                            
                            
@@ -496,16 +494,15 @@ ui <- fluidPage(
                                p("Tax estimates include federal and state income taxes, federal payroll taxes (Social Security and Medicare), and considerations for tax credits. The calculation begins by estimating the annual income for each family structure based on county-level wage data from the U.S. Census Bureau (ACS)."),
                                p("Average Cost is calculated directly from this average income using 2023 tax brackets, standard deductions, and applicable credits like the Child Tax Credit and Dependent Care Credit."),
                                p("Minimum Cost is an approximation derived by scaling down the average tax burden. We calculated a ratio of the minimum survival income to the average income for a given family and applied this ratio to the average tax amount, providing a reasonable estimate for taxes at a lower income level."), 
-                               p("$$\\text{Minimum Tax} = \\text{Average Tax} \\times \\left( \\frac{\\text{Minimum Income}}{\\text{Average Income}} \\right)$$")
+                              
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Healthcare")),
-                               p("Since direct county-level healthcare cost data is unavailable, we used an indirect estimation method. We started with state-level baseline annual costs for a household, derived from data published by KFF and the Centers for Medicare & Medicaid Services (CMS). These base costs were then scaled for each county using a ratio of the county's median household income to Virginia's statewide median income (both from the ACS). This common economic practice assumes that healthcare costs tend to be higher in areas with higher incomes."),
-                               p("Finally, these county-scaled costs were adjusted using multipliers for each family structure to account for different healthcare needs based on age and household size (e.g., families with children have higher costs). These multipliers were adapted from models like the MIT Living Wage Calculator. The Minimum Cost and Average Cost scenarios are based on different starting baseline figures to reflect lower- and higher-cost health plans, respectively."), 
                                
-                               p("$$\\text{County Healthcare Cost} = \\text{Base Cost} \\times \\left( \\frac{\\text{County Median Income}}{\\text{State Median Income}} \\right)$$"),
-                               p("$$\\text{Final Healthcare Cost} = \\text{County Cost} \\times \\text{Multiplier}_{\\text{family}}$$")
+                               p("Healthcare costs are based on a combination of average employer-sponsored health insurance premiums and out-of-pocket medical expenses. These estimates show what households typically pay each month for insurance and common medical services."),
+                               p("Healthcare costs were calculated separately for each family structure, taking into account different needs by age and household composition. Since detailed county-level healthcare price data is rare, the same set of monthly estimates is applied across all Virginia counties."),
+                               p("The Minimum Cost scenario reflects modest insurance plans with lower out-of-pocket spending, while the Average Cost represents more comprehensive plans with higher coverage and expenses.")
                            ),
                            
                            div(class = "about-variable-item",
@@ -513,7 +510,6 @@ ui <- fluidPage(
                                p("Childcare costs were calculated using county-level 2024 price data from the National Database of Childcare Prices (NDCP). This dataset provides annual minimum and general (average) prices for both home-based and center-based care across different child age groups (infant, toddler, etc.). For each county, we first calculated an average cost across all age groups for both home-based and center-based care, and then averaged these two values together to get a single 'combined' cost for the county."),
                                p("This annual figure was converted to a monthly cost. For families with children, this per-child cost was multiplied by the number of children in the household (e.g., twice the cost for a two-child family). For households with no children, the childcare cost is zero."), 
                                
-                               p("$$\\text{Monthly Childcare Cost} = \\left( \\frac{\\text{Annual Cost}}{12} \\right) \\times \\text{Number of Children}$$")
                            ),
                            
                            div(class = "about-variable-item",
@@ -521,8 +517,6 @@ ui <- fluidPage(
                                p("Technology costs are defined as one broadband internet connection per household plus one smartphone plan per adult. Costs are based on national benchmarks and are assumed to be uniform across all Virginia counties, as local data is not available."),
                                p("Minimum Cost uses baseline costs of $77/month for internet and $15/month per adult for a smartphone plan. And the Average Cost uses higher benchmarks of $81/month for internet and $64.50/month per adult for a smartphone plan. Households with no adults have a technology cost of zero."), 
                                
-                               p("$$\\text{Minimum Technology Cost} = 77 + (15 \\times \\text{Number of Adults})$$"),
-                               p("$$\\text{Average Technology Cost} = 81 + (64.5 \\times \\text{Number of Adults})$$")
                            ),
                            
                            div(class = "about-variable-item",
@@ -539,14 +533,12 @@ ui <- fluidPage(
                                h4(strong("Miscellaneous")),
                                p("The miscellaneous category covers a range of other essential but non-itemized expenses, such as clothing, personal care products, and household supplies. Following a common budgeting principle, this cost is estimated as 10% of the total monthly budget, excluding taxes. It provides a buffer for minor, unpredictable expenses that are a normal part of life."), 
                                
-                               p("$$\\text{Miscellaneous Cost} = 0.10 \\times (\\text{Total Monthly Cost} - \\text{Taxes})$$")
                            ),
                            
                            div(class = "about-variable-item",
                                h4(strong("Hourly Wage")),
                                p("The hourly wage is not shown in the table, but we used it for the taxes calculation. It represents the pre-tax hourly wage a household's earner(s) must make to cover the total monthly cost of living. It is calculated by taking the 'Annual Total' cost for a given family structure and dividing it by 2,080 (the standard number of work hours in a year, based on a 40-hour work week)."), 
                                
-                               p("$$\\text{Hourly Wage} = \\frac{\\text{Annual Total Cost}}{2,080}$$")
                            ),
                            
                            
@@ -575,7 +567,18 @@ ui <- fluidPage(
                                    tags$li(strong("Wickham, H., et al. (2023)."), em("tidyr: Tidy Messy Data (R package version 1.3.1)."), tags$a(href="https://tidyr.tidyverse.org", target="_blank", "https://tidyr.tidyverse.org")), 
                                    tags$li(strong("U.S. Bureau of Labor Statistics. (2023)."), em("Consumer Expenditure Survey (CEX)."), "Retrieved from ", tags$a(href="https://www.bls.gov/cex/", target="_blank", "https://www.bls.gov/cex/")),
                                    tags$li(strong("Federal Highway Administration. (2023)."), em("Highway Statistics Series: Average Annual Miles per Driver by Age Group."), "Retrieved from ", tags$a(href="https://www.fhwa.dot.gov/policyinformation/statistics.cfm", target="_blank", "https://www.fhwa.dot.gov/policyinformation/statistics.cfm")), 
-                                   tags$li(strong("Virginia Transit Agencies."), em("Local transit fare schedules."), "Data retrieved from websites of WMATA, GRTC, HRT, GLTC, BRITE, CAT, and Blacksburg Transit, July 2025.")
+                                   tags$li(strong("Virginia Transit Agencies."), em("Local transit fare schedules."), "Data retrieved from websites of WMATA, GRTC, HRT, GLTC, BRITE, CAT, and Blacksburg Transit, July 2025."), 
+                                   tags$li(strong("Agency for Healthcare Research and Quality. (2023)."),
+                                           em("Medical Expenditure Panel Survey (MEPS) Insurance Component: MEPSnet/IC."),
+                                           " Retrieved from ",
+                                           tags$a(href = "https://meps.ahrq.gov/mepsweb/data_stats/MEPSnetIC.jsp", target = "_blank",
+                                                  "https://meps.ahrq.gov/mepsweb/data_stats/MEPSnetIC.jsp")),
+                                   
+                                   tags$li(strong("U.S. Bureau of Labor Statistics. (2023)."),
+                                           em("Consumer Expenditure Survey, Tables 1400 and 1502."),
+                                           " Retrieved from ",
+                                           tags$a(href = "https://www.bls.gov/cex/", target = "_blank", "https://www.bls.gov/cex/"))
+                                   
                                    
                            )
                        )
